@@ -6,9 +6,12 @@ import (
 	"net/http"
 	"os"
 
+	"Allusion/data"
 	"Allusion/logger"
+	"Allusion/movies/handlers"
 
 	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
 )
 
 func main() {
@@ -17,7 +20,9 @@ func main() {
 		log.Printf("No .env file found or failed to load: %v", err)
 	}
 
+
 	logInstance := initializeLogger()
+
 
 	dbConnStr := os.Getenv("DATABASE_URL")
 	if dbConnStr == "" {
@@ -29,6 +34,27 @@ func main() {
 	}
 	defer db.Close()
 
+
+
+
+	movieRepo, err := data.NewMovieRepository(db, logInstance)
+	if err != nil {
+		log.Fatalf("Failed to initialize movie repository: %v", err)
+	}
+
+
+	movieHandler := handlers.NewMovieHandler(movieRepo, logInstance)
+
+
+
+	http.HandleFunc("/api/movies/random", movieHandler.GetRandomMovies)
+	http.HandleFunc("/api/movies/top", movieHandler.GetTopMovies)
+	http.HandleFunc("/api/movies/search", movieHandler.SearchMovies)
+	http.HandleFunc("/api/movies/", movieHandler.GetMovie)
+	http.HandleFunc("/api/genres", movieHandler.GetGenres)
+	http.HandleFunc("/api/account/register", movieHandler.GetGenres)
+	http.HandleFunc("/api/account/authenticate", movieHandler.GetGenres)
+	
 	http.Handle("/", http.FileServer(http.Dir("public")))
 
 	const addr = ":8080"

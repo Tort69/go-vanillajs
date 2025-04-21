@@ -47,6 +47,36 @@
   </main>
 
 
+  <!-- Alert Modal -->
+  <dialog id="alert-modal">
+    <h3>Error</h3>
+    <p>There was an error loading the page</p>
+    <button class="action-btn" onclick="app.closeError()">OK</button>
+  </dialog>
+
+  <template id="template-movies">
+    <section>
+      <div id="search-header">
+        <h2></h2>
+        <section id="filters">
+          <select id="filter" onchange="app.searchFilterChange(this.value)">
+            <option>Filter by Genre</option>
+          </select>
+          <select id="order" onchange="app.searchOrderChange(this.value)">
+            <option value="popularity">Sort by Popularity</option>
+            <option value="score">Sort by Score</option>
+            <option value="date">Sort by Release Date</option>
+            <option value="name">Sort by Name</option>
+          </select>
+        </section>
+      </div>
+      <ul id="movies-result">
+        <animated-loading data-elements="5" data-width="150px" data-height="220px">
+        </animated-loading>
+      </ul>
+    </section>
+  </template>
+
 
 
   <template id="template-home">
@@ -66,7 +96,75 @@
     </section>
   </template>
 
+    <template id="template-movie-details">
+      <article id="movie">
+        <h2><animated-loading elements="2"></animated-loading></h2>
+        <h3></h3>
+        <header>
+          <img src="" alt="Poster" onerror="this.width='0px'; this.height='0px'">
+          <youtube-embed id="trailer" data-url=""></youtube-embed>
+          <section id="actions">
+            <dl id="metadata">
+            </dl>
+            <button id="btnFavorites">Add to Favorites</button>
+            <button id="btnWatchlist">Add to Watchlist</button>
+          </section>
+        </header>
+        <ul id="genres"></ul>
+        <p id="overview"></p>
+        <ul id="cast"></ul>
+      </article>
+    </template>
 
+    <template id="template-register">
+      <section>
+        <h2>Register a New Account</h2>
+        <form onsubmit="app.register(event)">
+          <label for="register-name">Name</label>
+          <input type="text" id="register-name" placeholder="Name" required autocomplete="name">
+          <label for="register-email">Email</label>
+          <input type="email" id="register-email" placeholder="Email" required autocomplete="email">
+          <label for="register-password">Password</label>
+          <input type="password" id="register-password" placeholder="Password" required autocomplete="new-password">
+          <label for="register-password-confirm">Confirm Password</label>
+          <input type="password" id="register-password-confirm" placeholder="Confirm Password" required
+            autocomplete="new-password">
+          <button>Register</button>
+          <p>If you already have an account, please <a href="/account/login">login</a>.</p>
+        </form>
+      </section>
+    </template>
+    <template id="template-login">
+      <section>
+        <h2>Login into Your Account</h2>
+        <form onsubmit="app.login(event)">
+          <label for="login-email">Email</label>
+          <input type="email" id="login-email" placeholder="Email" required autocomplete="email">
+          <label for="login-password">Password</label>
+          <input type="password" id="login-password" placeholder="Password" required autocomplete="current-password">
+          <button>Log In</button>
+          <p>If you don't have an account, please <a href="/account/register">register</a>.</p>
+        </form>
+      </section>
+    </template>
+
+    <template id="template-account">
+      <section id="account">
+        <h2>You are Logged In</h2>
+        <button onclick="app.logout()">Log out</button>
+        <button onclick="app.Router.go('/account/favorites')">Your Favorites</button>
+        <button onclick="app.Router.go('/account/watchlist')">Your Watchlist</button>
+      </section>
+    </template>
+
+    <template id="template-collection">
+      <section>
+        <ul id="movies-result">
+          <animated-loading data-elements="5" data-width="150px" data-height="220px">
+          </animated-loading>
+        </ul>
+      </section>
+    </template>
 
   <footer>
     <p>© ReelingIt - FrontendMasters.com</p>

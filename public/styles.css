@@ -207,13 +207,13 @@ movie-item {
 #search-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;    
+    align-items: center;
 }
 
 #filters {
-    justify-content: flex-end; 
+    justify-content: flex-end;
     gap: 1rem;
-    align-items: center;     
+    align-items: center;
 }
 
 select {
@@ -238,7 +238,7 @@ dt {
 
 dd {
     font-size: 1em;
-    color: var(--textColor);    
+    color: var(--textColor);
 }
 
 /* Footer */
@@ -365,7 +365,7 @@ button:hover {
 #movie header #actions {
     display: flex;
     flex-direction: column;
-    align-items: center; 
+    align-items: center;
 }
 #movie header #actions button {
     width: 170px;
@@ -408,11 +408,11 @@ button:hover {
     border-radius: 10px;
     display: flex;
     gap: 10px;
-    align-items: center; 
+    align-items: center;
 }
 
 #movie #cast p {
-    color: var(--textColor)    
+    color: var(--textColor)
 }
 
 #movie #cast img {
@@ -455,6 +455,52 @@ input[type=text],input[type=password],input[type=email] {
     min-width: 250px;
 }
 
+
+.movieArticle {
+    position: relative;
+}
+
+
+.movieArrow {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 40px;
+    height:40px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.movieArrow:hover {
+    transform: rotate(90deg);
+}
+
+.movieArrow::before,
+.movieArrow::after {
+    content: '';
+    position: absolute;
+    width: 14px;
+    height: 2px;
+    background: #ff4444;
+    left: 50%;
+    top: 50%;
+}
+
+.movieArrow::before {
+    transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.movieArrow::after {
+    transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.movieArrow:focus {
+    outline: 2px solid #0066cc;
+}
+
+
 /* Responsive Design */
 @media (max-width: 768px) {
     header {
@@ -484,5 +530,5 @@ input[type=text],input[type=password],input[type=email] {
         margin: auto;
     }
 
-    
+
 }

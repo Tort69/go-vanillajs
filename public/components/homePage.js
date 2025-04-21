@@ -1,7 +1,7 @@
-import API from '../services/api.js'
-import { MovieItemComponent } from './MovieItem.js'
+import API from '../services/API.js'
+import MovieItemComponent from './MovieItem.js'
 
-export default class homePage extends HTMLElement {
+export default class HomePage extends HTMLElement {
   async render() {
     const topMovies = await API.getTopMovies()
     renderMoviesInList(topMovies, this.querySelector('#top-10 ul'))
@@ -27,4 +27,4 @@ export default class homePage extends HTMLElement {
     this.render()
   }
 }
-customElements.define('home-page', homePage)
+customElements.define('home-page', HomePage)

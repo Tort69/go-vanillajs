@@ -31,7 +31,7 @@ const Router = {
           const params = match.slice(1)
           pageElement = new r.component()
           pageElement.loggedIn = r.loggedIn
-
+          console.log(params)
           pageElement.params = params
         }
       }
@@ -52,6 +52,7 @@ const Router = {
     function updatePage() {
       document.querySelector('main').innerHTML = ''
       document.querySelector('main').appendChild(pageElement)
+      console.log(pageElement)
     }
 
     if (!document.startViewTransition) {

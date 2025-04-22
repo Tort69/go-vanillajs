@@ -10,6 +10,7 @@ import (
 	"Allusion/logger"
 	"Allusion/models"
 	"Allusion/token"
+	"Allusion/utils"
 
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -171,6 +172,30 @@ func (h *AccountHandler) AuthMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+func (h *AccountHandler) DeleteAccountHandler(w http.ResponseWriter, r *http.Request) {
+
+	email, ok := r.Context().Value("email").(string)
+	if !ok {
+		http.Error(w, "Unable to retrieve email", http.StatusInternalServerError)
+		return
+	}
+
+	success, err := h.storage.DeleteAccount(email)
+
+	if h.handleStorageError(w, err, "Failed to save to collection") {
+		return
+	}
+
+	response := AuthResponse{
+		Success: success,
+		Message: "Successfully delete account",
+	}
+
+	if err := h.writeJSONResponse(w, response); err == nil {
+		h.logger.Info("Successfully delete account")
+	}
+}
+
 func (h *AccountHandler) SaveToCollection(w http.ResponseWriter, r *http.Request) {
 	type CollectionRequest struct {
 		MovieID    int    `json:"movie_id"`
@@ -271,6 +296,22 @@ func (h *AccountHandler) GetWatchlist(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := h.writeJSONResponse(w, details.Watchlist); err == nil {
 		h.logger.Info("Successfully sent favorites")
+	}
+}
+
+func (h *AccountHandler) VerifyByEmail(w http.ResponseWriter, r *http.Request) {
+
+	token, err := utils.ExtractTokenFromPath(r.URL.Path)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	IsVerified, email, err := h.storage.VerifyEmail(token)
+	if h.handleStorageError(w, err, "Failed to verified") {
+		return
+	}
+	if h.writeJSONResponse(w, IsVerified) == nil {
+		h.logger.Info("Successfully verify by email: " + email)
 	}
 }
 

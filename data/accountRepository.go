@@ -3,11 +3,13 @@ package data
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"strconv"
 	"time"
 
 	"Allusion/logger"
 	"Allusion/models"
+	"Allusion/utils"
 
 	_ "github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
@@ -27,6 +29,7 @@ func NewAccountRepository(db *sql.DB, log *logger.Logger) (*AccountRepository, e
 
 func (r *AccountRepository) Register(name, email, password string) (bool, error) {
 	// Validate basic requirements
+	var user models.User
 	if name == "" || email == "" || password == "" {
 		r.logger.Error("Registration validation failed: missing required fields", nil)
 		return false, ErrRegistrationValidation
@@ -35,7 +38,10 @@ func (r *AccountRepository) Register(name, email, password string) (bool, error)
 	// Check if user already exists
 	var exists bool
 	err := r.db.QueryRow(`
-		SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)
+		SELECT EXISTS(
+		SELECT 1
+			FROM users
+			WHERE email = $1)
 	`, email).Scan(&exists)
 	if err != nil {
 		r.logger.Error("Failed to check existing user", err)
@@ -43,6 +49,7 @@ func (r *AccountRepository) Register(name, email, password string) (bool, error)
 	}
 	if exists {
 		r.logger.Error("User already exists with email: "+email, ErrUserAlreadyExists)
+
 		return false, ErrUserAlreadyExists
 	}
 
@@ -53,10 +60,19 @@ func (r *AccountRepository) Register(name, email, password string) (bool, error)
 		return false, err
 	}
 
+	token, err := utils.GenerateVerificationToken()
+	if err != nil {
+		r.logger.Error("Failed to create verify token", err)
+	}
+
+	user.IsVerified = false
+	user.VerifyToken = token
+	user.TokenExpiresAt = time.Now().Add(24 * time.Hour)
+
 	// Insert new user
 	query := `
-		INSERT INTO users (name, email, password_hashed, time_created)
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO users (name, email, password_hashed, time_created, is_verified, verify_token, token_expires_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id
 	`
 	var userID int
@@ -66,11 +82,17 @@ func (r *AccountRepository) Register(name, email, password string) (bool, error)
 		email,
 		string(hashedPassword),
 		time.Now(),
+		user.IsVerified,
+		user.VerifyToken,
+		user.TokenExpiresAt,
 	).Scan(&userID)
 	if err != nil {
+		fmt.Print(err)
+
 		r.logger.Error("Failed to register user", err)
 		return false, err
 	}
+	utils.SendVerificationEmail(email, token)
 
 	return true, nil
 }
@@ -84,7 +106,7 @@ func (r *AccountRepository) Authenticate(email string, password string) (bool, e
 	// Fetch user by email
 	var user models.User
 	query := `
-		SELECT id, name, email, password_hashed
+		SELECT id, name, email, password_hashed, is_verified, verify_token, token_expires_at
 		FROM users
 		WHERE email = $1 AND time_deleted IS NULL
 	`
@@ -93,8 +115,14 @@ func (r *AccountRepository) Authenticate(email string, password string) (bool, e
 		&user.Name,
 		&user.Email,
 		&user.PasswordHashed,
+		&user.IsVerified,
+		&user.VerifyToken,
+		&user.TokenExpiresAt,
 	)
+	if user.IsVerified {
+	}
 	if err == sql.ErrNoRows {
+
 		r.logger.Error("User not found for email: "+email, nil)
 		return false, ErrAuthenticationValidation
 	}
@@ -110,12 +138,40 @@ func (r *AccountRepository) Authenticate(email string, password string) (bool, e
 		return false, ErrAuthenticationValidation
 	}
 
+	//verify email send
+	if user.IsVerified {
+		token, err := utils.GenerateVerificationToken()
+		if err != nil {
+			r.logger.Error("Failed to create verify token", err)
+		}
+
+		user.IsVerified = false
+		user.VerifyToken = token
+		user.TokenExpiresAt = time.Now().Add(24 * time.Hour)
+
+		updateQuery := `
+		UPDATE users
+		SET last_login = $1 AND is_verified = FALSE AND verify_token= $1 AND token_expires_at= $2
+		WHERE id = $3
+		`
+		_, err = r.db.Exec(updateQuery, time.Now(), user.VerifyToken, user.TokenExpiresAt)
+		if err != nil {
+			r.logger.Error("Failed to send email verify", err)
+			return false, ErrVerifyMail
+
+		}
+		utils.SendVerificationEmail(email, token)
+		return true, nil
+
+	}
+
 	// Update last login time
 	updateQuery := `
 		UPDATE users
 		SET last_login = $1
 		WHERE id = $2
 	`
+
 	_, err = r.db.Exec(updateQuery, time.Now(), user.ID)
 	if err != nil {
 		r.logger.Error("Failed to update last login", err)
@@ -123,6 +179,28 @@ func (r *AccountRepository) Authenticate(email string, password string) (bool, e
 	}
 
 	return true, nil
+}
+
+func (r *AccountRepository) DeleteAccount(email string) (bool, error) {
+
+	query := `
+	DELETE FROM users WHERE email=$1
+	RETURNING id
+	`
+	var user models.User
+
+	err := r.db.QueryRow(query,
+		email).Scan(
+		&user.Email,
+	)
+
+	if err != nil {
+		r.logger.Error("Failed to register user", err)
+		return false, err
+	}
+
+	return true, nil
+
 }
 
 func (r *AccountRepository) GetAccountDetails(email string) (models.User, error) {
@@ -307,15 +385,56 @@ func (r *AccountRepository) DeleteCollection(user models.User, movieID int, coll
 		r.logger.Error("Failed to delete movie to "+collection, err)
 		return false, err
 	}
-	print("DeleteDeleteDelete")
 
 	r.logger.Info("Successfully delete movie " + strconv.Itoa(movieID) + " to " + collection + " for user")
 	return true, nil
 }
 
+func (r *AccountRepository) VerifyEmail(token string) (bool, string, error) {
+	// Validate basic requirements
+
+	var user models.User
+	query := `
+        SELECT email
+        FROM users
+        WHERE
+            verify_token = $1 AND
+            is_verified = $2 AND
+            token_expires_at > NOW()`
+
+	err := r.db.QueryRow(query, token, false).Scan(&user.Email)
+	fmt.Print(user.ID)
+	if err == sql.ErrNoRows {
+		r.logger.Error("User not found", nil)
+		return false, "", ErrUserNotFound
+	}
+	if err != nil {
+		r.logger.Error("Failed to query user ID", err)
+		return false, "", err
+	}
+
+	updateQuery := `
+	UPDATE users
+        SET
+				verify_token = NULL,
+				token_expires_at = NULL,
+            is_verified = TRUE,
+						WHERE email = $1`
+
+	_, err = r.db.Exec(updateQuery, user.Email)
+	if err != nil {
+		r.logger.Error("Failed to update verify email", err)
+		// Don't fail authentication just because last login update failed
+	}
+
+	return true, user.Email, nil
+
+}
+
 var (
 	ErrRegistrationValidation   = errors.New("registration failed")
 	ErrAuthenticationValidation = errors.New("authentication failed")
+	ErrVerifyMail               = errors.New("email unconfirmed, confirmation sent to your e-mail again")
 	ErrUserAlreadyExists        = errors.New("user already exists")
 	ErrUserNotFound             = errors.New("user not found")
 )

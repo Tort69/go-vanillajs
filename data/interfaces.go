@@ -16,5 +16,6 @@ type AccountStorage interface {
 	GetAccountDetails(string) (models.User, error)
 	SaveCollection(models.User, int, string) (bool, error)
 	DeleteCollection(models.User, int, string) (bool, error)
-
+	DeleteAccount(string) (bool, error)
+	VerifyEmail(string) (bool, string, error)
 }

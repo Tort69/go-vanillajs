@@ -148,12 +148,22 @@
       </section>
     </template>
 
+    <template id="template-verify">
+      <section>
+        <h2>Email Confirmation Page</h2>
+
+          <p id="verifyText">If the email did not arrive, please <a href="/account/login">log in</a>.</p>
+
+      </section>
+    </template>
+
     <template id="template-account">
       <section id="account">
         <h2>You are Logged In</h2>
         <button onclick="app.logout()">Log out</button>
         <button onclick="app.Router.go('/account/favorites')">Your Favorites</button>
         <button onclick="app.Router.go('/account/watchlist')">Your Watchlist</button>
+        <button onclick="app.deleteAccount()">Delete account</button>
       </section>
     </template>
 

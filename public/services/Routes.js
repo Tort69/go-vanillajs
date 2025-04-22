@@ -5,6 +5,7 @@ import LoginPage from '../components/LoginPage.js'
 import MovieDetailsPage from '../components/MovieDetailPage.js'
 import MoviesPage from '../components/MoviesPage.js'
 import RegisterPage from '../components/RegisterPage.js'
+import VerifyPage from '../components/VerifyPage.js'
 import WatchlistPage from '../components/WatchlistPage.js'
 
 export const routes = [
@@ -46,6 +47,11 @@ export const routes = [
   {
     path: '/account/watchlist',
     component: WatchlistPage,
+    loggedIn: true,
+  },
+  {
+    path: /^\/account\/verify\/([A-Za-z0-9]+)$/,
+    component: VerifyPage,
     loggedIn: true,
   },
 ]

@@ -19,7 +19,21 @@ export const API = {
     return await API.send('account/register/', { name, email, password })
   },
   authenticate: async (email, password) => {
-    return await API.send('account/authenticate/', { email, password })
+    try {
+      return await API.send('account/authenticate/', { email, password })
+    } catch (e) {
+      showError('Unable to authorize by credentials')
+    }
+  },
+  verifyEmail: async (token) => {
+    try {
+      return await API.fetch(`account/verify/${token}`)
+    } catch (e) {
+      showError('Unable verify token')
+    }
+  },
+  deleteAccount: async () => {
+    return await API.send('account/deleteAccount/')
   },
   getFavorites: async () => {
     try {

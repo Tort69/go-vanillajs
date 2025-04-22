@@ -16,8 +16,8 @@ window.app = {
     message = 'There was an error loading the page',
     goToHome = true
   ) => {
+    document.querySelector('#alert-modal p').textContent = message
     document.querySelector('#alert-modal').showModal()
-    document.querySelector('#alert-modal p').textContents = message
     if (goToHome) app.Router.go('/')
     return
   },
@@ -94,6 +94,14 @@ window.app = {
     app.Store.jwt = null
     app.Router.go('/')
   },
+  deleteAccount: async () => {
+    const response = await API.deleteAccount()
+    if (response.success) {
+      localStorage.removeItem('jwt')
+      app.Store.jwt = null
+      app.Router.go('/')
+    }
+  },
   saveToCollection: async (movie_id, collection) => {
     if (app.Store.loggedIn) {
       try {
@@ -120,7 +128,6 @@ window.app = {
     if (app.Store.loggedIn) {
       try {
         const response = await API.deleteToCollection(movie_id, collection)
-        console.log(response)
         if (response.success) {
           switch (collection) {
             case 'favorite':

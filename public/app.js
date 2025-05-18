@@ -7,6 +7,7 @@ import MoviesPage from './components/MoviesPage.js'
 import { routes } from './services/Routes.js'
 import Store from './services/Store.js'
 import API from './services/API.js'
+import startTimer from './utils/startTimer.js'
 
 window.app = {
   API,
@@ -59,12 +60,6 @@ window.app = {
     if (password != passwordConfirm) errors.push("Passwords don't match")
     if (errors.length == 0) {
       const response = await API.register(name, email, password)
-      if (response.success) {
-        app.Store.jwt = response.jwt
-        app.Router.go('/account/')
-      } else {
-        app.showError(response.message, false)
-      }
     } else {
       app.showError(errors.join('. '), false)
     }
@@ -79,7 +74,11 @@ window.app = {
     if (password.length < 6) errors.push('Enter a password with 6 characters')
     if (errors.length == 0) {
       const response = await API.authenticate(email, password)
+      if (response.status === 403) {
+        Router.go('/account/verifyEmail')
+      }
       if (response.success) {
+        localStorage.setItem('unverifiedEmail', userData.email)
         app.Store.jwt = response.jwt
         app.Router.go('/account/')
       } else {
@@ -88,6 +87,19 @@ window.app = {
     } else {
       app.showError(errors.join('. '), false)
     }
+  },
+  resendVerifyEmail: async (event) => {
+    event.preventDefault()
+    email = window.localStorage.get('unverifiedEmail')
+
+    try {
+      response = await API.resendVerifyEmail(email)
+    } catch (e) {
+      app.showError('Unable send mail', false)
+    }
+
+    localStorage.setItem('lastEmailSent', Date.now())
+    startTimer(seconds)
   },
   logout: () => {
     localStorage.removeItem('jwt')

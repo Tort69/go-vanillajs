@@ -151,11 +151,20 @@
     <template id="template-verify">
       <section>
         <h2>Email Confirmation Page</h2>
-
-          <p id="verifyText">If the email did not arrive, please <a href="/account/login">log in</a>.</p>
-
+          <p id="verifyText">If the email did not arrive, please <button id="resend-button" onclick="app.resendVerifyEmail">Resend <span id="timer"> </span></button>.</p>
       </section>
     </template>
+
+    <template id="template-confirmed-mail">
+      <section>
+        <h2>Email Confirmation Page</h2>
+        <p id="confirmed-text">Stand by, please. </p>
+          <button id="resend-button"
+            onclick="app.resendVerifyEmail">Resend(<span id="timer"> </span>)
+          </button>
+      </section>
+    </template>
+
 
     <template id="template-account">
       <section id="account">

@@ -5,8 +5,8 @@ tmp_dir = "tmp"
 [build]
 cmd = "go build -o ./tmp/main.exe ./main.go"
 bin = "./tmp/main.exe"
-include_ext = ["go"]  # Only watch .go files
-exclude_dir = ["tmp", "vendor", "node_modules", "public"]
+include_ext = ["go", "js"]  # Only watch .go files
+exclude_dir = ["tmp", "vendor", "node_modules"]
 delay = 1000  # ms
 
 [log]

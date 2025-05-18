@@ -52,7 +52,6 @@ const Router = {
     function updatePage() {
       document.querySelector('main').innerHTML = ''
       document.querySelector('main').appendChild(pageElement)
-      console.log(pageElement)
     }
 
     if (!document.startViewTransition) {

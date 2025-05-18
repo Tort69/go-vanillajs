@@ -1,3 +1,5 @@
+import Router from './Router.js'
+
 export const API = {
   baseURL: '/api/',
   getTopMovies: async () => {
@@ -27,9 +29,16 @@ export const API = {
   },
   verifyEmail: async (token) => {
     try {
-      return await API.fetch(`account/verify/${token}`)
+      return await API.fetch(`account/verify/`, { token })
     } catch (e) {
       showError('Unable verify token')
+    }
+  },
+  resendVerifyEmail: async (email) => {
+    try {
+      return await API.fetch(`account/resendVerifyEmail/`, { email })
+    } catch (e) {
+      showError('Unable send mail')
     }
   },
   deleteAccount: async () => {
@@ -80,6 +89,11 @@ export const API = {
         },
         body: JSON.stringify(args),
       })
+      if (response.status == 201) {
+        debugger
+        localStorage.setItem('unverifiedEmail', args.email)
+        Router.go('/account/verifyEmail')
+      }
       const result = await response.json()
 
       return result
@@ -90,11 +104,13 @@ export const API = {
   fetch: async (service, args) => {
     try {
       const queryString = args ? new URLSearchParams(args).toString() : ''
-      const response = await fetch(API.baseURL + service + '?' + queryString, {
+      const fullQueryString = args ? '?' + queryString : ''
+      const response = await fetch(API.baseURL + service + fullQueryString, {
         headers: {
           Authorization: app.Store.jwt ? `Bearer ${app.Store.jwt}` : null,
         },
       })
+
       const result = await response.json()
       return result
     } catch (e) {

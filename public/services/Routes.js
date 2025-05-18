@@ -7,6 +7,7 @@ import MoviesPage from '../components/MoviesPage.js'
 import RegisterPage from '../components/RegisterPage.js'
 import VerifyPage from '../components/VerifyPage.js'
 import WatchlistPage from '../components/WatchlistPage.js'
+import ConfirmedMailPage from '../components/ConfirmedMailPage.js'
 
 export const routes = [
   {
@@ -50,8 +51,13 @@ export const routes = [
     loggedIn: true,
   },
   {
-    path: /^\/account\/verify\/([A-Za-z0-9]+)$/,
+    path: '/account/verifyEmail',
     component: VerifyPage,
-    loggedIn: true,
+    loggedIn: false,
+  },
+  {
+    path: '/account/verify',
+    component: ConfirmedMailPage,
+    loggedIn: false,
   },
 ]

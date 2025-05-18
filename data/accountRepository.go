@@ -27,6 +27,48 @@ func NewAccountRepository(db *sql.DB, log *logger.Logger) (*AccountRepository, e
 	}, nil
 }
 
+func (r *AccountRepository) ResendVerifyEmail(email string) (bool, error) {
+
+	var user models.User
+	var exists bool
+	err := r.db.QueryRow(`
+		SELECT EXISTS(
+		SELECT 1
+			FROM users
+			WHERE email = $1 AND is_verified = FALSE)
+	`, email).Scan(&exists)
+	if err != nil {
+		r.logger.Error("Failed to check existing user", err)
+		return false, err
+	}
+	if !exists {
+		r.logger.Error(" Unable to find the user or mail is already verified", ErrUserAlreadyExists)
+		return false, ErrUserAlreadyExists
+	}
+
+	token, err := utils.GenerateVerificationToken()
+	if err != nil {
+		r.logger.Error("Failed to create verify token", err)
+	}
+
+	user.IsVerified = false
+	user.VerifyToken = token
+	user.TokenExpiresAt = time.Now().Add(24 * time.Hour)
+
+	query := `
+		INSERT INTO users (is_verified, verify_token, token_expires_at)
+		VALUES ($1, $2, $3)
+	`
+
+	_, err = r.db.Exec(query, user.IsVerified, user.VerifyToken, user.TokenExpiresAt)
+	if err != nil {
+		r.logger.Error("Failed to save the verification token in the database", err)
+		return false, ErrVerifyMail
+	}
+	utils.SendVerificationEmail(email, token)
+	return true, nil
+}
+
 func (r *AccountRepository) Register(name, email, password string) (bool, error) {
 	// Validate basic requirements
 	var user models.User
@@ -49,7 +91,6 @@ func (r *AccountRepository) Register(name, email, password string) (bool, error)
 	}
 	if exists {
 		r.logger.Error("User already exists with email: "+email, ErrUserAlreadyExists)
-
 		return false, ErrUserAlreadyExists
 	}
 
@@ -139,7 +180,7 @@ func (r *AccountRepository) Authenticate(email string, password string) (bool, e
 	}
 
 	//verify email send
-	if user.IsVerified {
+	if !user.IsVerified {
 		token, err := utils.GenerateVerificationToken()
 		if err != nil {
 			r.logger.Error("Failed to create verify token", err)
@@ -156,13 +197,11 @@ func (r *AccountRepository) Authenticate(email string, password string) (bool, e
 		`
 		_, err = r.db.Exec(updateQuery, time.Now(), user.VerifyToken, user.TokenExpiresAt)
 		if err != nil {
-			r.logger.Error("Failed to send email verify", err)
+			r.logger.Error("Failed to save the verification token in the database", err)
 			return false, ErrVerifyMail
-
 		}
 		utils.SendVerificationEmail(email, token)
-		return true, nil
-
+		return false, ErrUserNotСonfirmedMail
 	}
 
 	// Update last login time
@@ -391,7 +430,6 @@ func (r *AccountRepository) DeleteCollection(user models.User, movieID int, coll
 }
 
 func (r *AccountRepository) VerifyEmail(token string) (bool, string, error) {
-	// Validate basic requirements
 
 	var user models.User
 	query := `
@@ -403,7 +441,8 @@ func (r *AccountRepository) VerifyEmail(token string) (bool, string, error) {
             token_expires_at > NOW()`
 
 	err := r.db.QueryRow(query, token, false).Scan(&user.Email)
-	fmt.Print(user.ID)
+	r.logger.Info(user.Email)
+
 	if err == sql.ErrNoRows {
 		r.logger.Error("User not found", nil)
 		return false, "", ErrUserNotFound
@@ -415,16 +454,15 @@ func (r *AccountRepository) VerifyEmail(token string) (bool, string, error) {
 
 	updateQuery := `
 	UPDATE users
-        SET
-				verify_token = NULL,
-				token_expires_at = NULL,
-            is_verified = TRUE,
-						WHERE email = $1`
+		SET
+    	verify_token = NULL,
+    	token_expires_at = NULL,
+    	is_verified = TRUE
+		WHERE email = $1;`
 
 	_, err = r.db.Exec(updateQuery, user.Email)
 	if err != nil {
 		r.logger.Error("Failed to update verify email", err)
-		// Don't fail authentication just because last login update failed
 	}
 
 	return true, user.Email, nil
@@ -435,6 +473,7 @@ var (
 	ErrRegistrationValidation   = errors.New("registration failed")
 	ErrAuthenticationValidation = errors.New("authentication failed")
 	ErrVerifyMail               = errors.New("email unconfirmed, confirmation sent to your e-mail again")
+	ErrUserNotСonfirmedMail     = errors.New("user mail is not confirmed")
 	ErrUserAlreadyExists        = errors.New("user already exists")
 	ErrUserNotFound             = errors.New("user not found")
 )

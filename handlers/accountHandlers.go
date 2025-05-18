@@ -10,7 +10,6 @@ import (
 	"Allusion/logger"
 	"Allusion/models"
 	"Allusion/token"
-	"Allusion/utils"
 
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -42,6 +41,8 @@ type AccountHandler struct {
 // Utility functions
 func (h *AccountHandler) writeJSONResponse(w http.ResponseWriter, data interface{}) error {
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-Custom-Header", "value")
+	w.WriteHeader(http.StatusCreated)
 	if err := json.NewEncoder(w).Encode(data); err != nil {
 		h.logger.Error("Failed to encode response", err)
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
@@ -58,8 +59,15 @@ func (h *AccountHandler) handleStorageError(w http.ResponseWriter, err error, co
 			w.WriteHeader(http.StatusUnauthorized)
 			json.NewEncoder(w).Encode(AuthResponse{Success: false, Message: err.Error()})
 			return true
+		case data.ErrVerifyMail:
+			http.Error(w, "Error verify Email", http.StatusForbidden)
+			return true
+
 		case data.ErrUserNotFound:
 			http.Error(w, "User not found", http.StatusNotFound)
+			return true
+		case data.ErrUserNotСonfirmedMail:
+			http.Error(w, "User mail is not confirmed", http.StatusForbidden)
 			return true
 		default:
 			h.logger.Error(context, err)
@@ -82,7 +90,8 @@ func (h *AccountHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	// Register the user
 	success, err := h.storage.Register(req.Name, req.Email, req.Password)
-	if h.handleStorageError(w, err, "Failed to register user") {
+	if !success {
+		h.handleStorageError(w, err, "Failed to register user")
 		return
 	}
 
@@ -90,7 +99,6 @@ func (h *AccountHandler) Register(w http.ResponseWriter, r *http.Request) {
 	response := AuthResponse{
 		Success: success,
 		Message: "User registered successfully",
-		JWT:     token.CreateJWT(models.User{Email: req.Email, Name: req.Name}, *h.logger),
 	}
 
 	if err := h.writeJSONResponse(w, response); err == nil {
@@ -109,10 +117,11 @@ func (h *AccountHandler) Authenticate(w http.ResponseWriter, r *http.Request) {
 
 	// Authenticate the user
 	success, err := h.storage.Authenticate(req.Email, req.Password)
-	if h.handleStorageError(w, err, "Failed to authenticate user") {
+	if !success {
+
+		h.handleStorageError(w, err, "Failed to register user")
 		return
 	}
-
 	// Return success response
 	response := AuthResponse{
 		Success: success,
@@ -122,6 +131,34 @@ func (h *AccountHandler) Authenticate(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.writeJSONResponse(w, response); err == nil {
 		h.logger.Info("Successfully authenticated user with email: " + req.Email)
+	}
+}
+
+func (h *AccountHandler) HandlerResendVerifyEmail(w http.ResponseWriter, r *http.Request) {
+
+	// Parse request body
+	var req RegisterRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.logger.Error("Failed to decode registration request", err)
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Register the user
+	success, err := h.storage.ResendVerifyEmail(req.Email)
+	if !success {
+		h.handleStorageError(w, err, "Failed to register user")
+		return
+	}
+
+	// Return success response
+	response := AuthResponse{
+		Success: success,
+		Message: "The email has been resent",
+	}
+
+	if err := h.writeJSONResponse(w, response); err == nil {
+		h.logger.Info("Successfully registered user with email: " + req.Email)
 	}
 }
 
@@ -300,12 +337,9 @@ func (h *AccountHandler) GetWatchlist(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AccountHandler) VerifyByEmail(w http.ResponseWriter, r *http.Request) {
+	token := r.URL.Query().Get("token")
+	h.logger.Info(token)
 
-	token, err := utils.ExtractTokenFromPath(r.URL.Path)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
 	IsVerified, email, err := h.storage.VerifyEmail(token)
 	if h.handleStorageError(w, err, "Failed to verified") {
 		return

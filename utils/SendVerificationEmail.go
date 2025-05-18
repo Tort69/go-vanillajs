@@ -18,7 +18,7 @@ func SendVerificationEmail(email string, token string) (bool, error) {
 	to := []string{email}
 	// msg := []byte("Subject: Hello! This is the body of the email.")
 
-	verificationLink := "http://localhost:8080/account/verify/" + token
+	verificationLink := "http://localhost:8080/account/verify?token=" + token
 
 	// Тело письма в формате MIME
 	body := fmt.Sprintf(`To: %s

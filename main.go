@@ -51,14 +51,16 @@ func main() {
 	http.HandleFunc("/api/genres/", movieHandler.GetGenres)
 	http.HandleFunc("/api/account/register/", accountHandler.Register)
 	http.HandleFunc("/api/account/authenticate/", accountHandler.Authenticate)
+	http.HandleFunc("/api/account/verify/",
+		accountHandler.VerifyByEmail)
+	http.HandleFunc("/api/account/resendVerifyEmail/",
+		accountHandler.HandlerResendVerifyEmail)
+
 	http.Handle("/api/account/favorites/",
 		accountHandler.AuthMiddleware(http.HandlerFunc(accountHandler.GetFavorites)))
 
 	http.Handle("/api/account/deleteAccount/",
 		accountHandler.AuthMiddleware(http.HandlerFunc(accountHandler.DeleteAccountHandler)))
-
-	http.Handle("/api/account/verify/",
-		accountHandler.AuthMiddleware(http.HandlerFunc(accountHandler.VerifyByEmail)))
 
 	http.Handle("/api/account/watchlist/",
 		accountHandler.AuthMiddleware(http.HandlerFunc(accountHandler.GetWatchlist)))
@@ -76,7 +78,7 @@ func main() {
 	http.HandleFunc("/movies", catchAllHandler)
 	http.HandleFunc("/movies/", catchAllHandler)
 	http.HandleFunc("/account/", catchAllHandler)
-	http.HandleFunc("/account/verif/", catchAllHandler)
+	http.HandleFunc("/account/verify", catchAllHandler)
 
 	http.Handle("/", http.FileServer(http.Dir("public")))
 

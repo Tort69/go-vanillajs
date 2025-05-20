@@ -8,7 +8,8 @@ function getRemainingTime(time) {
 export default function startTimer() {
   this.button = document.getElementById('resend-button')
   this.timerDisplay = document.getElementById('timer')
-  const lastEmailSentTime = window.localStorage.get('lastEmailSentTime') || 0
+  const lastEmailSentTime =
+    window.localStorage.getItem('lastEmailSentTime') || 0
 
   seconds = getRemainingTime(lastEmailSentTime)
   let remaining = seconds

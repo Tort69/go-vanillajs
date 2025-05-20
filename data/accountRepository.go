@@ -52,8 +52,11 @@ func (r *AccountRepository) ResendVerifyEmail(email string) (bool, error) {
 	}
 
 	user.IsVerified = false
-	user.VerifyToken = token
-	user.TokenExpiresAt = time.Now().Add(24 * time.Hour)
+	user.VerifyToken = sql.NullString{String: token, Valid: token != ""}
+	user.TokenExpiresAt = sql.NullTime{
+		Time:  time.Now().Add(24 * time.Hour),
+		Valid: true,
+	}
 
 	query := `
 		INSERT INTO users (is_verified, verify_token, token_expires_at)
@@ -107,8 +110,11 @@ func (r *AccountRepository) Register(name, email, password string) (bool, error)
 	}
 
 	user.IsVerified = false
-	user.VerifyToken = token
-	user.TokenExpiresAt = time.Now().Add(24 * time.Hour)
+	user.VerifyToken = sql.NullString{String: token, Valid: token != ""}
+	user.TokenExpiresAt = sql.NullTime{
+		Time:  time.Now().Add(24 * time.Hour),
+		Valid: true,
+	}
 
 	// Insert new user
 	query := `
@@ -187,8 +193,11 @@ func (r *AccountRepository) Authenticate(email string, password string) (bool, e
 		}
 
 		user.IsVerified = false
-		user.VerifyToken = token
-		user.TokenExpiresAt = time.Now().Add(24 * time.Hour)
+		user.VerifyToken = sql.NullString{String: token, Valid: token != ""}
+		user.TokenExpiresAt = sql.NullTime{
+			Time:  time.Now().Add(24 * time.Hour),
+			Valid: true,
+		}
 
 		updateQuery := `
 		UPDATE users

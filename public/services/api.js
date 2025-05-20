@@ -89,13 +89,21 @@ export const API = {
         },
         body: JSON.stringify(args),
       })
-      if (response.status == 201) {
-        debugger
-        localStorage.setItem('unverifiedEmail', args.email)
-        Router.go('/account/verifyEmail')
+      switch (response.status) {
+        case 401:
+          app.showError('Try different credentials', false)
+          return
+        case 403:
+          if (localStorage.getItem('unverifiedEmail')) {
+            app.Router.go('/account/verifyEmail')
+            return
+          } else {
+            app.Router.go('/account/login')
+            return
+          }
       }
-      const result = await response.json()
 
+      const result = await response.json()
       return result
     } catch (e) {
       app.showError('Internal Server Error', false)

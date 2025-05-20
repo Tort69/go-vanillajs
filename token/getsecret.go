@@ -1,8 +1,8 @@
 package token
 
 import (
-	"os"
 	"Allusion/logger"
+	"os"
 )
 
 func GetJWTSecret(logger logger.Logger) string {

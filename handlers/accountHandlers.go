@@ -39,10 +39,13 @@ type AccountHandler struct {
 }
 
 // Utility functions
-func (h *AccountHandler) writeJSONResponse(w http.ResponseWriter, data interface{}) error {
+func (h *AccountHandler) writeJSONResponse(w http.ResponseWriter, data interface{}, status int) error {
 	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("X-Custom-Header", "value")
-	w.WriteHeader(http.StatusCreated)
+	if status == http.StatusCreated {
+		w.WriteHeader(http.StatusBadGateway)
+	}
+	w.WriteHeader(http.StatusOK)
+
 	if err := json.NewEncoder(w).Encode(data); err != nil {
 		h.logger.Error("Failed to encode response", err)
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
@@ -101,13 +104,15 @@ func (h *AccountHandler) Register(w http.ResponseWriter, r *http.Request) {
 		Message: "User registered successfully",
 	}
 
-	if err := h.writeJSONResponse(w, response); err == nil {
+	if err := h.writeJSONResponse(w, response, http.StatusCreated); err == nil {
 		h.logger.Info("Successfully registered user with email: " + req.Email)
 	}
 }
 
 func (h *AccountHandler) Authenticate(w http.ResponseWriter, r *http.Request) {
 	// Parse request body
+	h.logger.Info("ASDASDASDA")
+
 	var req AuthRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.logger.Error("Failed to decode authentication request", err)
@@ -129,7 +134,7 @@ func (h *AccountHandler) Authenticate(w http.ResponseWriter, r *http.Request) {
 		JWT:     token.CreateJWT(models.User{Email: req.Email}, *h.logger),
 	}
 
-	if err := h.writeJSONResponse(w, response); err == nil {
+	if err := h.writeJSONResponse(w, response, http.StatusOK); err == nil {
 		h.logger.Info("Successfully authenticated user with email: " + req.Email)
 	}
 }
@@ -157,7 +162,7 @@ func (h *AccountHandler) HandlerResendVerifyEmail(w http.ResponseWriter, r *http
 		Message: "The email has been resent",
 	}
 
-	if err := h.writeJSONResponse(w, response); err == nil {
+	if err := h.writeJSONResponse(w, response, http.StatusOK); err == nil {
 		h.logger.Info("Successfully registered user with email: " + req.Email)
 	}
 }
@@ -228,7 +233,7 @@ func (h *AccountHandler) DeleteAccountHandler(w http.ResponseWriter, r *http.Req
 		Message: "Successfully delete account",
 	}
 
-	if err := h.writeJSONResponse(w, response); err == nil {
+	if err := h.writeJSONResponse(w, response, http.StatusOK); err == nil {
 		h.logger.Info("Successfully delete account")
 	}
 }
@@ -263,7 +268,7 @@ func (h *AccountHandler) SaveToCollection(w http.ResponseWriter, r *http.Request
 		Message: "Movie added to " + req.Collection + " successfully",
 	}
 
-	if err := h.writeJSONResponse(w, response); err == nil {
+	if err := h.writeJSONResponse(w, response, http.StatusOK); err == nil {
 		h.logger.Info("Successfully saved movie to " + req.Collection)
 	}
 }
@@ -299,7 +304,7 @@ func (h *AccountHandler) DeleteToCollection(w http.ResponseWriter, r *http.Reque
 		Message: "Movie delete to " + req.Collection + " successfully",
 	}
 
-	if err := h.writeJSONResponse(w, response); err == nil {
+	if err := h.writeJSONResponse(w, response, http.StatusOK); err == nil {
 		h.logger.Info("Successfully delete movie to " + req.Collection)
 	}
 }
@@ -315,7 +320,7 @@ func (h *AccountHandler) GetFavorites(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Unable to retrieve collections", http.StatusInternalServerError)
 		return
 	}
-	if err := h.writeJSONResponse(w, details.Favorites); err == nil {
+	if err := h.writeJSONResponse(w, details.Favorites, http.StatusOK); err == nil {
 		h.logger.Info("Successfully sent favorites")
 	}
 }
@@ -331,7 +336,7 @@ func (h *AccountHandler) GetWatchlist(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Unable to retrieve collections", http.StatusInternalServerError)
 		return
 	}
-	if err := h.writeJSONResponse(w, details.Watchlist); err == nil {
+	if err := h.writeJSONResponse(w, details.Watchlist, http.StatusOK); err == nil {
 		h.logger.Info("Successfully sent favorites")
 	}
 }
@@ -344,7 +349,7 @@ func (h *AccountHandler) VerifyByEmail(w http.ResponseWriter, r *http.Request) {
 	if h.handleStorageError(w, err, "Failed to verified") {
 		return
 	}
-	if h.writeJSONResponse(w, IsVerified) == nil {
+	if h.writeJSONResponse(w, IsVerified, http.StatusOK) == nil {
 		h.logger.Info("Successfully verify by email: " + email)
 	}
 }

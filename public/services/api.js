@@ -81,6 +81,7 @@ export const API = {
   },
   send: async (service, args) => {
     try {
+      debugger
       const response = await fetch(API.baseURL + service, {
         method: 'POST',
         headers: {
@@ -90,12 +91,14 @@ export const API = {
         body: JSON.stringify(args),
       })
       if (response.status == 201) {
-        debugger
+        localStorage.setItem('unverifiedEmail', args.email)
+        Router.go('/account/verifyEmail')
+      }
+      if (response.status == 403) {
         localStorage.setItem('unverifiedEmail', args.email)
         Router.go('/account/verifyEmail')
       }
       const result = await response.json()
-
       return result
     } catch (e) {
       app.showError('Internal Server Error', false)

@@ -31,14 +31,14 @@ const Router = {
           const params = match.slice(1)
           pageElement = new r.component()
           pageElement.loggedIn = r.loggedIn
-          console.log(params)
           pageElement.params = params
         }
       }
       if (pageElement) {
+        debugger
         // A page was found, we checked if we have access to it.
         if (pageElement.loggedIn && app.Store.loggedIn == false) {
-          app.Router.go('/account/login')
+          Router.go('/account/login')
           return
         }
         break

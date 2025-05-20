@@ -74,11 +74,7 @@ window.app = {
     if (password.length < 6) errors.push('Enter a password with 6 characters')
     if (errors.length == 0) {
       const response = await API.authenticate(email, password)
-      if (response.status === 403) {
-        Router.go('/account/verifyEmail')
-      }
       if (response.success) {
-        localStorage.setItem('unverifiedEmail', userData.email)
         app.Store.jwt = response.jwt
         app.Router.go('/account/')
       } else {

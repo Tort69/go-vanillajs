@@ -3,11 +3,15 @@ root = "."
 tmp_dir = "tmp"
 
 [build]
-cmd = "go build -o ./tmp/main.exe ./main.go"
-bin = "./tmp/main.exe"
+cmd = "go build -gcflags=all=-N -o ./tmp/main.exe"  # Отключаем оптимизации для отладки
+bin = "./tmp/main.exe"  # Путь к бинарнику
 include_ext = ["go", "js"]  # Only watch .go files
 exclude_dir = ["tmp", "vendor", "node_modules"]
 delay = 1000  # ms
+
+[run]
+exec_args = ["dlv", "exec", "--headless", "--listen=:2345", "--api-version=2", "--accept-multiclient", "./tmp/main"]
+delay = 300
 
 [log]
 time = true

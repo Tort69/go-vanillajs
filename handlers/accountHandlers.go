@@ -30,6 +30,11 @@ type AuthRequest struct {
 	Password string `json:"password"`
 }
 
+type ResetPasswordRequest struct {
+	CurrentPassword string `json:"currentPassword"`
+	NewPassword     string `json:"newPassword"`
+}
+
 type AuthResponse struct {
 	Success bool   `json:"success"`
 	Message string `json:"message"`
@@ -162,6 +167,38 @@ func (h *AccountHandler) HandlerResendVerifyEmail(w http.ResponseWriter, r *http
 	if err := h.writeJSONResponse(w, response); err == nil {
 		h.logger.Info("Successfully send mail user with email: " + email)
 	}
+}
+
+func (h *AccountHandler) HandlerResetPassword(w http.ResponseWriter, r *http.Request) {
+
+	// Parse request body
+	var req ResetPasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.logger.Error("Failed to decode registration request", err)
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	email, ok := r.Context().Value("email").(string)
+	if !ok {
+		http.Error(w, "Unable to retrieve email", http.StatusInternalServerError)
+		return
+	}
+
+	success, err := h.storage.ResetPassword(email, req.CurrentPassword, req.NewPassword)
+	if !success {
+		h.handleStorageError(w, err, "Failed to register user")
+		return
+	}
+
+	response := AuthResponse{
+		Success: success,
+		Message: "User registered successfully",
+	}
+	if err := h.writeJSONResponse(w, response); err == nil {
+		h.logger.Info("Successfully reset Password user with email: " + email)
+	}
+
 }
 
 func (h *AccountHandler) AuthMiddleware(next http.Handler) http.Handler {

@@ -19,5 +19,5 @@ type AccountStorage interface {
 	DeleteAccount(string) (bool, error)
 	VerifyEmail(string) (bool, string, error)
 	ResendVerifyEmail(string) (bool, error)
-
+	ResetPassword(string, string, string) (bool, error)
 }

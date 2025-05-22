@@ -75,6 +75,10 @@ func main() {
 	http.Handle("/api/account/resendVerifyEmail/",
 		accountHandler.RateLimitMiddleware(http.HandlerFunc(accountHandler.HandlerResendVerifyEmail)))
 
+
+	http.Handle("/api/account/resetPassword/",
+	accountHandler.AuthMiddleware(http.HandlerFunc(accountHandler.HandlerResetPassword)))
+
 	http.Handle("/api/account/favorites/",
 		accountHandler.AuthMiddleware(http.HandlerFunc(accountHandler.GetFavorites)))
 

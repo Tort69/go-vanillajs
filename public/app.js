@@ -5,6 +5,7 @@ import HomePage from './components/HomePage.js'
 import MovieDetailsPage from './components/MovieDetailPage.js'
 import MoviesPage from './components/MoviesPage.js'
 import { routes } from './services/Routes.js'
+import ResetPasswordModal from './components/ResetPasswordModal.js'
 import Store from './services/Store.js'
 import API from './services/API.js'
 import startTimer, { getRemainingTime } from './utils/startTimer.js'
@@ -24,6 +25,13 @@ window.app = {
   },
   closeError: () => {
     document.getElementById('alert-modal').close()
+  },
+  openModal: () => {
+    document.querySelector('main').appendChild(new ResetPasswordModal())
+    document.querySelector('password-modal').open()
+  },
+  closeModal: () => {
+    document.querySelector('password-modal').close()
   },
   search: (event) => {
     event.preventDefault()
@@ -68,6 +76,30 @@ window.app = {
       }
     } else {
       app.showError(errors.join('. '), false)
+    }
+  },
+  handlerResetPassword: async (event) => {
+    event.preventDefault()
+    const formData = new FormData(event.target)
+    const data = {
+      currentPassword: formData.get('currentPassword'),
+      newPassword: formData.get('newPassword'),
+      newPasswordConfirm: formData.get('newPasswordConfirm'),
+    }
+    if (data.newPassword != data.newPasswordConfirm) {
+      app.showError("Passwords don't match", false)
+    }
+    try {
+      const response = await API.resetPassword(
+        data.currentPassword,
+        data.newPassword
+      )
+      if (response?.success) {
+        app.closeModal()
+        app.showModal('Password successfully changed', false)
+      }
+    } catch (e) {
+      app.showError(e.message, false)
     }
   },
   login: async (event) => {

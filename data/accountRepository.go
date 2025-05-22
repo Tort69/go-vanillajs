@@ -3,7 +3,6 @@ package data
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 	"strconv"
 	"time"
 
@@ -25,6 +24,64 @@ func NewAccountRepository(db *sql.DB, log *logger.Logger) (*AccountRepository, e
 		db:     db,
 		logger: log,
 	}, nil
+}
+
+func (r *AccountRepository) ResetPassword(email string, currentPassword string, newPassword string) (bool, error) {
+
+	var user models.User
+	query := `
+		SELECT email, password_hashed
+		FROM users
+		WHERE email = $1
+	`
+	err := r.db.QueryRow(query, email).Scan(
+		&user.Email,
+		&user.PasswordHashed,
+	)
+	if err == sql.ErrNoRows {
+		r.logger.Error("User not found for email: "+email, nil)
+		return false, ErrAuthenticationValidation
+	}
+
+	if err != nil {
+		r.logger.Error("Failed to query user for reset PASSWORD", err)
+		return false, err
+	}
+
+	// Verify password
+	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHashed), []byte(currentPassword))
+	if err != nil {
+		r.logger.Error("Current password mismatch for email: "+email, nil)
+		return false, ErrAuthenticationValidation
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		r.logger.Error("Failed to hash new password", err)
+		return false, err
+	}
+
+	query = `
+	UPDATE users
+	SET password_hashed = $1
+	WHERE email = $2
+	RETURNING id
+`
+
+	var userID int
+	err = r.db.QueryRow(
+		query,
+		string(hashedPassword),
+		email,
+	).Scan(&userID)
+
+	if err != nil {
+		r.logger.Error("Failed to register user", err)
+		return false, err
+	}
+
+	r.logger.Info("Succsec reset password user with email:" + email)
+	return true, nil
 }
 
 func (r *AccountRepository) ResendVerifyEmail(email string) (bool, error) {
@@ -134,8 +191,6 @@ func (r *AccountRepository) Register(name, email, password string) (bool, error)
 		user.TokenExpiresAt,
 	).Scan(&userID)
 	if err != nil {
-		fmt.Print(err)
-
 		r.logger.Error("Failed to register user", err)
 		return false, err
 	}

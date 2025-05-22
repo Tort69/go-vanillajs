@@ -41,6 +41,16 @@ export const API = {
       showError('Unable send mail')
     }
   },
+  resetPassword: async (currentPassword, newPassword) => {
+    try {
+      return await API.send(`account/resetPassword/`, {
+        currentPassword,
+        newPassword,
+      })
+    } catch (e) {
+      showError('Unable reset password')
+    }
+  },
   deleteAccount: async () => {
     return await API.send('account/deleteAccount/')
   },

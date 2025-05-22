@@ -184,6 +184,7 @@
         <button onclick="app.Router.go('/account/favorites')">Your Favorites</button>
         <button onclick="app.Router.go('/account/watchlist')">Your Watchlist</button>
         <button onclick="app.deleteAccount()">Delete account</button>
+        <button onclick="app.openModal()">Reset password</button>
       </section>
     </template>
 
@@ -195,6 +196,36 @@
         </ul>
       </section>
     </template>
+
+
+
+<template id="password-modal-template">
+  <div class="password-modal__content">
+    <h2>Смена пароля</h2>
+    <form onsubmit="app.handlerResetPassword(event)" class="password-modal__form">
+      <div class="password-modal__form-group">
+        <label>
+          Текущий пароль:
+          <input type="password" class="password-modal__input" name="currentPassword" required autocomplete="current-password">
+        </label>
+      </div>
+      <div class="password-modal__form-group">
+        <label>
+          Новый пароль:
+          <input type="password" class="password-modal__input" name="newPassword" required autocomplete="new-password">
+        </label>
+        <label>
+          Подтверждение пароля:
+          <input type="password" class="password-modal__input" name="newPasswordConfirm" required autocomplete="new-password">
+        </label>
+      </div>
+      <div class="password-modal__button-group">
+        <button type="button" class="password-modal__cancel-btn">Отмена</button>
+        <button type="submit">Сменить</button>
+      </div>
+    </form>
+  </div>
+</template>
 
   <footer>
     <p>© ReelingIt - FrontendMasters.com</p>

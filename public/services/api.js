@@ -36,7 +36,7 @@ export const API = {
   },
   resendVerifyEmail: async (email) => {
     try {
-      return await API.fetch(`account/resendVerifyEmail/`, { email })
+      return await API.send(`account/resendVerifyEmail/`, { email })
     } catch (e) {
       showError('Unable send mail')
     }
@@ -89,6 +89,7 @@ export const API = {
         },
         body: JSON.stringify(args),
       })
+      debugger
       switch (response.status) {
         case 401:
           app.showError('Try different credentials', false)
@@ -101,6 +102,9 @@ export const API = {
             app.Router.go('/account/login')
             return
           }
+        case 429:
+          app.showError('try again later.', false)
+          return
       }
 
       const result = await response.json()

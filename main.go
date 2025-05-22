@@ -1,22 +1,41 @@
 package main
 
 import (
+	"Allusion/data"
+	"Allusion/handlers"
+	"Allusion/logger"
+	"context"
 	"database/sql"
 	"log"
 	"net/http"
 	"os"
 
-	"Allusion/data"
-	"Allusion/handlers"
-	"Allusion/logger"
-
+	"github.com/redis/go-redis/v9"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
+)
+
+var (
+	ctx = context.Background()
 )
 
 func main() {
 
 	logInstance := initializeLogger()
+
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     "127.0.0.1:6379",
+		Password: "",
+		DB:       0,
+	})
+
+	// Проверка подключения
+	pong, err := rdb.Ping(ctx).Result()
+	if err != nil {
+		log.Printf("Connection failed:%v", err)
+
+	}
+	log.Printf("Connected:%v", pong)
 
 	if err := godotenv.Load(); err != nil {
 		log.Printf("No .env file found or failed to load: %v", err)
@@ -36,7 +55,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to initialize account repository: %v", err)
 	}
-	accountHandler := handlers.NewAccountHandler(accountRepo, logInstance)
+	accountHandler := handlers.NewAccountHandler(accountRepo, logInstance, rdb)
 
 	movieRepo, err := data.NewMovieRepository(db, logInstance)
 	if err != nil {
@@ -53,8 +72,8 @@ func main() {
 	http.HandleFunc("/api/account/authenticate/", accountHandler.Authenticate)
 	http.HandleFunc("/api/account/verify/",
 		accountHandler.VerifyByEmail)
-	http.HandleFunc("/api/account/resendVerifyEmail/",
-		accountHandler.HandlerResendVerifyEmail)
+	http.Handle("/api/account/resendVerifyEmail/",
+		accountHandler.RateLimitMiddleware(http.HandlerFunc(accountHandler.HandlerResendVerifyEmail)))
 
 	http.Handle("/api/account/favorites/",
 		accountHandler.AuthMiddleware(http.HandlerFunc(accountHandler.GetFavorites)))

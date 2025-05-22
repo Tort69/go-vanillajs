@@ -6,8 +6,8 @@ import MovieDetailsPage from './components/MovieDetailPage.js'
 import MoviesPage from './components/MoviesPage.js'
 import { routes } from './services/Routes.js'
 import Store from './services/Store.js'
-import API from './services/api.js'
-import startTimer from './utils/startTimer.js'
+import API from './services/API.js'
+import startTimer, { getRemainingTime } from './utils/startTimer.js'
 
 window.app = {
   API,
@@ -91,18 +91,21 @@ window.app = {
       app.showError(errors.join('. '), false)
     }
   },
-  resendVerifyEmail: async (event) => {
+  handlerResendVerifyEmail: async (event) => {
     event.preventDefault()
-    email = window.localStorage.get('unverifiedEmail')
-
-    try {
-      response = await API.resendVerifyEmail(email)
-    } catch (e) {
-      app.showError('Unable send mail', false)
+    const email = window.localStorage.getItem('unverifiedEmail')
+    const seconds = localStorage.getItem('lastEmailSentTime')
+    if (getRemainingTime(seconds) == 0) {
+      try {
+        localStorage.setItem('lastEmailSentTime', Date.now())
+        const response = await API.resendVerifyEmail(email)
+        if (!response) return
+      } catch (e) {
+        app.showError('Unable send mail', false)
+        return
+      }
     }
-
-    localStorage.setItem('lastEmailSent', Date.now())
-    startTimer(seconds)
+    startTimer()
   },
   logout: () => {
     localStorage.removeItem('jwt')

@@ -7,7 +7,7 @@ const Store = {
     return this.jwt !== null
   },
 }
-debugger
+
 if (localStorage.getItem('jwt')) {
   Store.jwt = localStorage.getItem('jwt')
 }

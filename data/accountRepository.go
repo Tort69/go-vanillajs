@@ -51,7 +51,6 @@ func (r *AccountRepository) ResendVerifyEmail(email string) (bool, error) {
 		r.logger.Error("Failed to create verify token", err)
 	}
 
-	user.IsVerified = false
 	user.VerifyToken = sql.NullString{String: token, Valid: token != ""}
 	user.TokenExpiresAt = sql.NullTime{
 		Time:  time.Now().Add(24 * time.Hour),
@@ -59,11 +58,12 @@ func (r *AccountRepository) ResendVerifyEmail(email string) (bool, error) {
 	}
 
 	query := `
-		INSERT INTO users (is_verified, verify_token, token_expires_at)
-		VALUES ($1, $2, $3)
-	`
+		UPDATE users
+		SET verify_token = $1,
+    token_expires_at = $2
+		WHERE email = $3 AND is_verified = FALSE `
 
-	_, err = r.db.Exec(query, user.IsVerified, user.VerifyToken, user.TokenExpiresAt)
+	_, err = r.db.Exec(query, user.VerifyToken, user.TokenExpiresAt, email)
 	if err != nil {
 		r.logger.Error("Failed to save the verification token in the database", err)
 		return false, ErrVerifyMail

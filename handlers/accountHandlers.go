@@ -5,11 +5,14 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"time"
 
 	"Allusion/data"
 	"Allusion/logger"
 	"Allusion/models"
 	"Allusion/token"
+
+	"github.com/redis/go-redis/v9" // indirect
 
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -36,6 +39,7 @@ type AuthResponse struct {
 type AccountHandler struct {
 	storage data.AccountStorage
 	logger  *logger.Logger
+	rdb     *redis.Client
 }
 
 // Utility functions
@@ -136,15 +140,14 @@ func (h *AccountHandler) Authenticate(w http.ResponseWriter, r *http.Request) {
 func (h *AccountHandler) HandlerResendVerifyEmail(w http.ResponseWriter, r *http.Request) {
 
 	// Parse request body
-	var req RegisterRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.logger.Error("Failed to decode registration request", err)
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	email, ok := r.Context().Value("email").(string)
+	if !ok {
+		http.Error(w, "Unable to retrieve email", http.StatusInternalServerError)
 		return
 	}
 
 	// Register the user
-	success, err := h.storage.ResendVerifyEmail(req.Email)
+	success, err := h.storage.ResendVerifyEmail(email)
 	if !success {
 		h.handleStorageError(w, err, "Failed to register user")
 		return
@@ -157,7 +160,7 @@ func (h *AccountHandler) HandlerResendVerifyEmail(w http.ResponseWriter, r *http
 	}
 
 	if err := h.writeJSONResponse(w, response); err == nil {
-		h.logger.Info("Successfully registered user with email: " + req.Email)
+		h.logger.Info("Successfully send mail user with email: " + email)
 	}
 }
 
@@ -204,6 +207,36 @@ func (h *AccountHandler) AuthMiddleware(next http.Handler) http.Handler {
 
 		// Inject email into the request context
 		ctx := context.WithValue(r.Context(), "email", email)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+const cooldown = 60 * time.Second
+
+func (h *AccountHandler) RateLimitMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		var req AuthRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			h.logger.Error("Failed to decode authentication request", err)
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		// Проверка времени последнего запроса
+		lastSent, err := h.rdb.Get(r.Context(), "resend:"+req.Email).Time()
+		if err == nil && time.Since(lastSent) < cooldown {
+			http.Error(w, "Email not found in token", http.StatusTooManyRequests)
+			return
+		}
+		// Обновление времени
+		err = nil
+		if err := h.rdb.Set(r.Context(), "resend:"+req.Email, time.Now(), cooldown).Err(); err != nil {
+			http.Error(w, "Internal error", http.StatusInternalServerError)
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), "email", req.Email)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -348,9 +381,10 @@ func (h *AccountHandler) VerifyByEmail(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func NewAccountHandler(storage data.AccountStorage, log *logger.Logger) *AccountHandler {
+func NewAccountHandler(storage data.AccountStorage, log *logger.Logger, rdb *redis.Client) *AccountHandler {
 	return &AccountHandler{
 		storage: storage,
 		logger:  log,
+		rdb:     rdb,
 	}
 }

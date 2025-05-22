@@ -151,7 +151,12 @@
     <template id="template-verify">
       <section>
         <h2>Email Confirmation Page</h2>
-          <p id="verifyText">If the email did not arrive, please <button id="resend-button" onclick="app.resendVerifyEmail">Resend <span id="timer"> </span></button>.</p>
+        <div>
+          <p id="verifyText"> If the email did not arrive, please</p>
+            <button id="resend-button" onclick="app.handlerResendVerifyEmail(event)" >
+              <span id="timer">Resend</span>
+            </button>
+        </div>
       </section>
     </template>
 
@@ -160,7 +165,13 @@
         <h2>Email Confirmation Page</h2>
         <p id="confirmed-text">Stand by, please. </p>
           <button id="resend-button"
-            onclick="app.resendVerifyEmail">Resend(<span id="timer"> </span>)
+            onclick="(event) => (event) => {
+              app.handlerResendVerifyEmail(event)}"
+            >
+
+              Resend
+              (<span id="timer"> </span>)
+
           </button>
       </section>
     </template>

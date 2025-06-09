@@ -15,4 +15,5 @@ type Movie struct {
 	PosterURL   *string  `json:"poster_url,omitempty"`
 	TrailerURL  *string  `json:"trailer_url,omitempty"`
 	Casting     []Actor  `json:"casting"`
+	Status      *string  `json:"status"`
 }

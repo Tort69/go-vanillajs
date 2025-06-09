@@ -8,6 +8,7 @@ import (
 	"Allusion/data"
 	"Allusion/logger"
 	"Allusion/models"
+	"Allusion/token"
 )
 
 type MovieHandler struct {
@@ -98,13 +99,19 @@ func (h *MovieHandler) SearchMovies(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *MovieHandler) GetMovie(w http.ResponseWriter, r *http.Request) {
+
+	email, ok := token.ExtractJWTSecret(r, *h.logger)
+	if !ok {
+		h.logger.Info("User not authorized")
+	}
+
 	idStr := r.URL.Path[len("/api/movies/"):]
 	id, ok := h.parseID(w, idStr)
 	if !ok {
 		return
 	}
 
-	movie, err := h.storage.GetMovieByID(id)
+	movie, err := h.storage.GetMovieByID(id, email)
 	if h.handleStorageError(w, err, "Failed to get movie by ID") {
 		return
 	}

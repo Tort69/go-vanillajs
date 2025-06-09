@@ -10,9 +10,9 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/redis/go-redis/v9"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
+	"github.com/redis/go-redis/v9"
 )
 
 var (
@@ -75,9 +75,8 @@ func main() {
 	http.Handle("/api/account/resendVerifyEmail/",
 		accountHandler.RateLimitMiddleware(http.HandlerFunc(accountHandler.HandlerResendVerifyEmail)))
 
-
 	http.Handle("/api/account/resetPassword/",
-	accountHandler.AuthMiddleware(http.HandlerFunc(accountHandler.HandlerResetPassword)))
+		accountHandler.AuthMiddleware(http.HandlerFunc(accountHandler.HandlerResetPassword)))
 
 	http.Handle("/api/account/favorites/",
 		accountHandler.AuthMiddleware(http.HandlerFunc(accountHandler.GetFavorites)))
@@ -101,6 +100,7 @@ func main() {
 	http.HandleFunc("/movies", catchAllHandler)
 	http.HandleFunc("/movies/", catchAllHandler)
 	http.HandleFunc("/account/", catchAllHandler)
+	// http.Handle("/account/", accountHandler.AuthMiddleware(http.HandlerFunc(catchAllHandler)))
 	http.HandleFunc("/account/verify", catchAllHandler)
 
 	http.Handle("/", http.FileServer(http.Dir("public")))

@@ -13,13 +13,28 @@ export default class MovieDetailsPage extends HTMLElement {
     const template = document.getElementById('template-movie-details')
     const content = template.content.cloneNode(true)
     this.appendChild(content)
+    const movieListStatus = this.movie.status
+    if (movieListStatus.includes('In Favorite')) {
+      this.querySelector('#btnFavorites').textContent = 'Unlist Favorite'
+      this.querySelector('#btnFavorites').addEventListener('click', () => {
+        app.deleteToCollection(this.movie.id, 'favorite')
+      })
+    } else {
+      this.querySelector('#btnFavorites').addEventListener('click', () => {
+        app.saveToCollection(this.movie.id, 'favorite')
+      })
+    }
 
-    this.querySelector('#btnFavorites').addEventListener('click', () => {
-      app.saveToCollection(this.movie.id, 'favorite')
-    })
-    this.querySelector('#btnWatchlist').addEventListener('click', () => {
-      app.saveToCollection(this.movie.id, 'watchlist')
-    })
+    if (movieListStatus.includes('In Watchlist')) {
+      this.querySelector('#btnWatchlist').textContent = 'Unlist Watchlist'
+      this.querySelector('#btnWatchlist').addEventListener('click', () => {
+        app.deleteToCollection(this.movie.id, 'watchlist')
+      })
+    } else {
+      this.querySelector('#btnWatchlist').addEventListener('click', () => {
+        app.saveToCollection(this.movie.id, 'watchlist')
+      })
+    }
 
     this.querySelector('h2').textContent = this.movie.title
     this.querySelector('h3').textContent = this.movie.tagline
@@ -57,8 +72,6 @@ export default class MovieDetailsPage extends HTMLElement {
             `
       ulCast.appendChild(li)
     })
-
-
   }
 
   connectedCallback() {

@@ -460,6 +460,13 @@ input[type=text],input[type=password],input[type=email] {
     position: relative;
 }
 
+.movieScore {
+    position: absolute;
+    bottom:25%;
+    right: 10%;
+    color: red;
+}
+
 
 .movieArrow {
     position: absolute;

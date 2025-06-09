@@ -17,6 +17,7 @@ export default class MovieItemComponent extends HTMLElement {
                       <article>
                         <img src="${this.movie.poster_url}" alt="${this.movie.title} Poster" onerror="this.onerror=null; this.src='/images/image-not-found.jpg'">
                         <p>${this.movie.title} (${this.movie.release_year})</p>
+                        <p class="movieScore">${this.movie.score}</p>
                       </article>
                       </a>
                     <div class="movieArrow"> </div>
@@ -24,20 +25,20 @@ export default class MovieItemComponent extends HTMLElement {
               `
       switch (this.title) {
         case 'Movie Watchlist':
-          document
-            .querySelector('.movieArrow')
-            .addEventListener('click', (e) => {
+          document.querySelectorAll('.movieArrow').forEach((element) =>
+            element.addEventListener('click', (e) => {
               e.preventDefault()
               app.deleteToCollection(this.movie.id, 'watchlist')
             })
+          )
           break
         case 'Favorite Movies':
-          document
-            .querySelector('.movieArrow')
-            .addEventListener('click', (e) => {
+          document.querySelectorAll('.movieArrow').forEach((element) =>
+            element.addEventListener('click', (e) => {
               e.preventDefault()
               app.deleteToCollection(this.movie.id, 'favorite')
             })
+          )
           break
       }
     } else {

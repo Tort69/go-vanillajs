@@ -74,21 +74,64 @@ func (r *MovieRepository) getMovies(query string) ([]models.Movie, error) {
 	return movies, nil
 }
 
-func (r *MovieRepository) GetMovieByID(id int) (models.Movie, error) {
-	// Fetch movie
+func (r *MovieRepository) GetMovieByID(id int, email string) (models.Movie, error) {
+	var user models.User
 	query := `
-		SELECT id, tmdb_id, title, tagline, release_year, overview, score,
-		       popularity, language, poster_url, trailer_url
-		FROM movies
-		WHERE id = $1
+		SELECT id, name, email
+		FROM users
+		WHERE email = $1 AND time_deleted IS NULL
 	`
-	row := r.db.QueryRow(query, id)
+	err := r.db.QueryRow(query, email).Scan(
+		&user.ID,
+		&user.Name,
+		&user.Email,
+	)
+	if err == sql.ErrNoRows {
+		r.logger.Error("User not found for email: "+email, nil)
+		return models.Movie{}, err
+	}
+	if err != nil {
+		r.logger.Error("Failed to query user by email", err)
+		return models.Movie{}, err
+	}
+	// Fetch movie
+	query = `
+		SELECT m.id,
+    m.tmdb_id,
+    m.title,
+    m.tagline,
+    m.release_year,
+    m.overview,
+    m.score,
+    m.popularity,
+    m.language,
+    m.poster_url,
+    m.trailer_url,
+    CONCAT(
+        CASE
+            WHEN MAX(CASE WHEN um.relation_type = 'favorite' THEN 1 ELSE 0 END) = 1 THEN 'In Favorite'
+            ELSE 'Not in Favorite'
+        END,
+        ', ',
+        CASE
+            WHEN MAX(CASE WHEN um.relation_type = 'watchlist' THEN 1 ELSE 0 END) = 1 THEN 'In Watchlist'
+            ELSE 'Not in Watchlist'
+        END
+    ) AS status
+FROM movies m
+LEFT JOIN user_movies um
+    ON m.id = um.movie_id
+    AND um.user_id = $1
+WHERE m.id = $2
+GROUP BY m.id, m.tmdb_id, m.title, m.tagline, m.release_year, m.overview, m.score, m.popularity, m.language, m.poster_url, m.trailer_url;
+	`
+	row := r.db.QueryRow(query, user.ID, id)
 
 	var m models.Movie
-	err := row.Scan(
+	err = row.Scan(
 		&m.ID, &m.TMDB_ID, &m.Title, &m.Tagline, &m.ReleaseYear,
 		&m.Overview, &m.Score, &m.Popularity, &m.Language,
-		&m.PosterURL, &m.TrailerURL,
+		&m.PosterURL, &m.TrailerURL, &m.Status,
 	)
 	if err == sql.ErrNoRows {
 		r.logger.Error("Movie not found", ErrMovieNotFound)

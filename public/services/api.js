@@ -99,7 +99,6 @@ export const API = {
         },
         body: JSON.stringify(args),
       })
-      debugger
       switch (response.status) {
         case 401:
           app.showError('Try different credentials', false)

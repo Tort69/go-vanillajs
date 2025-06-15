@@ -74,7 +74,7 @@ func (r *MovieRepository) getMovies(query string) ([]models.Movie, error) {
 	return movies, nil
 }
 
-func (r *MovieRepository) GetMovieByID(id int, email string) (models.Movie, error) {
+func (r *MovieRepository) GetMovieByID(id int, email string) (models.Movie, []models.Movie, error) {
 	var user models.User
 	query := `
 		SELECT id, name, email
@@ -88,11 +88,11 @@ func (r *MovieRepository) GetMovieByID(id int, email string) (models.Movie, erro
 	)
 	if err == sql.ErrNoRows {
 		r.logger.Error("User not found for email: "+email, nil)
-		return models.Movie{}, err
+		return models.Movie{}, []models.Movie{}, err
 	}
 	if err != nil {
 		r.logger.Error("Failed to query user by email", err)
-		return models.Movie{}, err
+		return models.Movie{}, []models.Movie{}, err
 	}
 	// Fetch movie
 	query = `
@@ -118,12 +118,12 @@ func (r *MovieRepository) GetMovieByID(id int, email string) (models.Movie, erro
             ELSE 'Not in Watchlist'
         END
     ) AS status
-FROM movies m
-LEFT JOIN user_movies um
-    ON m.id = um.movie_id
-    AND um.user_id = $1
-WHERE m.id = $2
-GROUP BY m.id, m.tmdb_id, m.title, m.tagline, m.release_year, m.overview, m.score, m.popularity, m.language, m.poster_url, m.trailer_url;
+		FROM movies m
+		LEFT JOIN user_movies um
+				ON m.id = um.movie_id
+				AND um.user_id = $1
+		WHERE m.id = $2
+		GROUP BY m.id, m.tmdb_id, m.title, m.tagline, m.release_year, m.overview, m.score, m.popularity, m.language, m.poster_url, m.trailer_url;
 	`
 	row := r.db.QueryRow(query, user.ID, id)
 
@@ -135,19 +135,26 @@ GROUP BY m.id, m.tmdb_id, m.title, m.tagline, m.release_year, m.overview, m.scor
 	)
 	if err == sql.ErrNoRows {
 		r.logger.Error("Movie not found", ErrMovieNotFound)
-		return models.Movie{}, ErrMovieNotFound
+		return models.Movie{}, []models.Movie{}, ErrMovieNotFound
 	}
 	if err != nil {
 		r.logger.Error("Failed to query movie by ID", err)
-		return models.Movie{}, err
+		return models.Movie{}, []models.Movie{}, err
 	}
 
 	// Fetch related data
 	if err := r.fetchMovieRelations(&m); err != nil {
-		return models.Movie{}, err
+		return models.Movie{}, []models.Movie{}, err
 	}
 
-	return m, nil
+	var related_movies []models.Movie
+	related_movies, err = r.Related_MoviesById(&m)
+
+	if err != nil {
+		return models.Movie{}, []models.Movie{}, err
+	}
+
+	return m, related_movies, nil
 }
 
 func (r *MovieRepository) SearchMoviesByName(name string, order string, genre *int) ([]models.Movie, error) {
@@ -291,6 +298,54 @@ func (r *MovieRepository) fetchMovieRelations(m *models.Movie) error {
 	}
 
 	return nil
+}
+
+func (r *MovieRepository) Related_MoviesById(movies *models.Movie) ([]models.Movie, error) {
+
+	query := `
+		WITH target_genres AS (
+				SELECT genre_id
+				FROM movie_genres
+				WHERE movie_id = $1
+		)
+		SELECT
+				m.id,
+				m.title,
+				m.release_year,
+				m.score,
+				m.poster_url,
+				COUNT(mg.genre_id) AS match_genre
+		FROM movies m
+		LEFT JOIN movie_genres mg
+				ON m.id = mg.movie_id
+				AND mg.genre_id IN (SELECT genre_id FROM target_genres)
+		WHERE m.id != $1
+		GROUP BY m.id, m.title, m.release_year, m.score, m.poster_url
+		ORDER BY match_genre DESC, m.title
+		LIMIT $2;
+			`
+	rows, err := r.db.Query(query, movies.ID, defaultLimit)
+	if err != nil {
+		r.logger.Error("Failed to query movies", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	var matchGenre int
+	var related_movies []models.Movie
+	for rows.Next() {
+		var m models.Movie
+		if err := rows.Scan(
+			&m.ID, &m.Title, &m.ReleaseYear,
+			&m.Score, &m.PosterURL, &matchGenre,
+		); err != nil {
+			r.logger.Error("Failed to scan movie row", err)
+			return nil, err
+		}
+		related_movies = append(related_movies, m)
+	}
+
+	return related_movies, nil
 }
 
 var (

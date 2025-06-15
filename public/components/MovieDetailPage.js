@@ -1,11 +1,13 @@
 import API from '../services/API.js'
+import MovieItemComponent from './MovieItem.js'
 
 export default class MovieDetailsPage extends HTMLElement {
-  movie = null
+  response = null
 
   async render(id) {
     try {
-      this.movie = await API.getMovieById(id)
+      this.response = await API.getMovieById(id)
+      this
     } catch (e) {
       app.showError()
       return
@@ -13,54 +15,62 @@ export default class MovieDetailsPage extends HTMLElement {
     const template = document.getElementById('template-movie-details')
     const content = template.content.cloneNode(true)
     this.appendChild(content)
-    const movieListStatus = this.movie.status
+    const movieListStatus = this.response.movie.status
     if (movieListStatus.includes('In Favorite')) {
       this.querySelector('#btnFavorites').textContent = 'Unlist Favorite'
       this.querySelector('#btnFavorites').addEventListener('click', () => {
-        app.deleteToCollection(this.movie.id, 'favorite')
+        app.deleteToCollection(this.response.movie.id, 'favorite')
       })
     } else {
       this.querySelector('#btnFavorites').addEventListener('click', () => {
-        app.saveToCollection(this.movie.id, 'favorite')
+        app.saveToCollection(this.response.movie.id, 'favorite')
       })
     }
 
     if (movieListStatus.includes('In Watchlist')) {
       this.querySelector('#btnWatchlist').textContent = 'Unlist Watchlist'
       this.querySelector('#btnWatchlist').addEventListener('click', () => {
-        app.deleteToCollection(this.movie.id, 'watchlist')
+        app.deleteToCollection(this.response.movie.id, 'watchlist')
       })
     } else {
       this.querySelector('#btnWatchlist').addEventListener('click', () => {
-        app.saveToCollection(this.movie.id, 'watchlist')
+        app.saveToCollection(this.response.movie.id, 'watchlist')
       })
     }
 
-    this.querySelector('h2').textContent = this.movie.title
-    this.querySelector('h3').textContent = this.movie.tagline
-    this.querySelector('img').src = this.movie.poster_url
-    this.querySelector('#trailer').dataset.url = this.movie.trailer_url
-    this.querySelector('#overview').textContent = this.movie.overview
+    this.querySelector('h2').textContent = this.response.movie.title
+    this.querySelector('h3').textContent = this.response.movie.tagline
+    this.querySelector('img').src = this.response.movie.poster_url
+    this.querySelector('#trailer').dataset.url = this.response.movie.trailer_url
+    this.querySelector('#overview').textContent = this.response.movie.overview
     this.querySelector('#metadata').innerHTML = `
             <dt>Release Date</dt>
-            <dd>${this.movie.release_year}</dd>
+            <dd>${this.response.movie.release_year}</dd>
             <dt>Score</dt>
-            <dd>${this.movie.score} / 10</dd>
+            <dd>${this.response.movie.score} / 10</dd>
             <dt>Original languae</dt>
-            <dd>${this.movie.language}</dd>
+            <dd>${this.response.movie.language}</dd>
         `
 
     const ulGenres = this.querySelector('#genres')
     ulGenres.innerHTML = ''
-    this.movie.genres.forEach((genre) => {
+    this.response.movie.genres.forEach((genre) => {
       const li = document.createElement('li')
       li.textContent = genre.name
       ulGenres.appendChild(li)
     })
 
+    const ulRelatedMovies = this.querySelector('#related-movies')
+    ulRelatedMovies.textContent = ''
+    this.response.related_movies.forEach((movie) => {
+      const li = document.createElement('li')
+      li.appendChild(new MovieItemComponent(movie))
+      ulRelatedMovies.appendChild(li)
+    })
+
     const ulCast = this.querySelector('#cast')
     ulCast.innerHTML = ''
-    this.movie.casting.forEach((actor) => {
+    this.response.movie.casting.forEach((actor) => {
       const li = document.createElement('li')
       li.innerHTML = `
                 <img src="${

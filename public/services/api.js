@@ -101,7 +101,9 @@ export const API = {
       })
       switch (response.status) {
         case 401:
-          app.showError('Try different credentials', false)
+          app.showError('Unauthorized', true)
+          app.Store.jwt = null
+          localStorage.removeItem('jwt')
           return
         case 403:
           if (localStorage.getItem('unverifiedEmail')) {
@@ -131,7 +133,13 @@ export const API = {
           Authorization: app.Store.jwt ? `Bearer ${app.Store.jwt}` : null,
         },
       })
-
+      switch (response.status) {
+        case 401:
+          app.showError('Unauthorized', true)
+          app.Store.jwt = null
+          localStorage.removeItem('jwt')
+          return
+      }
       const result = await response.json()
       return result
     } catch (e) {

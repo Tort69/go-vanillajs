@@ -11,6 +11,12 @@ import (
 	"Allusion/token"
 )
 
+// Основная структура ответа API
+type MovieResponse struct {
+	Movie         models.Movie   `json:"movie"`
+	RelatedMovies []models.Movie `json:"related_movies"`
+}
+
 type MovieHandler struct {
 	storage data.MovieStorage
 	logger  *logger.Logger
@@ -103,6 +109,7 @@ func (h *MovieHandler) GetMovie(w http.ResponseWriter, r *http.Request) {
 	email, ok := token.ExtractJWTSecret(r, *h.logger)
 	if !ok {
 		h.logger.Info("User not authorized")
+		email = ""
 	}
 
 	idStr := r.URL.Path[len("/api/movies/"):]
@@ -111,11 +118,17 @@ func (h *MovieHandler) GetMovie(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	movie, err := h.storage.GetMovieByID(id, email)
+	movie, related_movies, err := h.storage.GetMovieByID(id, email)
 	if h.handleStorageError(w, err, "Failed to get movie by ID") {
 		return
 	}
-	if h.writeJSONResponse(w, movie) == nil {
+
+	response := MovieResponse{
+		Movie:         movie,
+		RelatedMovies: related_movies,
+	}
+
+	if h.writeJSONResponse(w, response) == nil {
 		h.logger.Info("Successfully served movie with ID: " + idStr)
 	}
 }

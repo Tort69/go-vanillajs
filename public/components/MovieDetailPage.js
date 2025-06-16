@@ -23,19 +23,18 @@ export default class MovieDetailsPage extends HTMLElement {
       })
     } else {
       this.querySelector('#btnFavorites').addEventListener('click', () => {
-        app.saveToCollection(this.response.movie.id, 'favorite')
+        app.openMovieRatingModal()
       })
-    }
-
-    if (movieListStatus.includes('In Watchlist')) {
-      this.querySelector('#btnWatchlist').textContent = 'Unlist Watchlist'
-      this.querySelector('#btnWatchlist').addEventListener('click', () => {
-        app.deleteToCollection(this.response.movie.id, 'watchlist')
-      })
-    } else {
-      this.querySelector('#btnWatchlist').addEventListener('click', () => {
-        app.saveToCollection(this.response.movie.id, 'watchlist')
-      })
+      if (movieListStatus.includes('In Watchlist')) {
+        this.querySelector('#btnWatchlist').textContent = 'Unlist Watchlist'
+        this.querySelector('#btnWatchlist').addEventListener('click', () => {
+          app.deleteToCollection(this.response.movie.id, 'watchlist')
+        })
+      } else {
+        this.querySelector('#btnWatchlist').addEventListener('click', () => {
+          app.saveToCollection(this.response.movie.id, 'watchlist')
+        })
+      }
     }
 
     this.querySelector('h2').textContent = this.response.movie.title
@@ -72,6 +71,9 @@ export default class MovieDetailsPage extends HTMLElement {
     ulCast.innerHTML = ''
     this.response.movie.casting.forEach((actor) => {
       const li = document.createElement('li')
+      li.addEventListener('click', (e) => {
+        app.Router.go(`/actor/${actor.id}`)
+      })
       li.innerHTML = `
                 <img src="${
                   actor.image_url ?? '/images/generic_actor.jpg'
@@ -79,6 +81,7 @@ export default class MovieDetailsPage extends HTMLElement {
         actor.last_name
       }" >
                 <p>${actor.first_name} ${actor.last_name}</p>
+
             `
       ulCast.appendChild(li)
     })

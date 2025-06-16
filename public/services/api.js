@@ -89,6 +89,13 @@ export const API = {
       app.showError('Internal Server Error', false)
     }
   },
+  getActorDetail: async (id) => {
+    try {
+      return await API.fetch(`/actor/${id}`)
+    } catch (e) {
+      app.showError('Internal Server Error', false)
+    }
+  },
   send: async (service, args) => {
     try {
       const response = await fetch(API.baseURL + service, {

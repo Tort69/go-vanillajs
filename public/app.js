@@ -9,6 +9,7 @@ import ResetPasswordModal from './components/ResetPasswordModal.js'
 import Store from './services/Store.js'
 import API from './services/API.js'
 import startTimer, { getRemainingTime } from './utils/startTimer.js'
+import MovieRatingModal from './components/MovieRatingModal.js'
 
 window.app = {
   API,
@@ -32,6 +33,13 @@ window.app = {
   },
   closeModal: () => {
     document.querySelector('password-modal').close()
+  },
+  openMovieRatingModal: () => {
+    document.querySelector('main').appendChild(new MovieRatingModal())
+    // document.querySelector('movie-rating-modal').open()
+  },
+  closeMovieRatingModal: () => {
+    document.querySelector('movie-rating-modal').close()
   },
   search: (event) => {
     event.preventDefault()
@@ -197,6 +205,7 @@ window.app = {
       app.Router.go('/account/')
     }
   },
+  actorDetail: async (id) => {},
 }
 window.addEventListener('DOMContentLoaded', () => {
   app.Router.init()

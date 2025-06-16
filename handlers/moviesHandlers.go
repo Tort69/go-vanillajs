@@ -17,6 +17,11 @@ type MovieResponse struct {
 	RelatedMovies []models.Movie `json:"related_movies"`
 }
 
+type ActorResponse struct {
+	Actor         models.Actor   `json:"actor"`
+	RelatedMovies []models.Movie `json:"related_movies"`
+}
+
 type MovieHandler struct {
 	storage data.MovieStorage
 	logger  *logger.Logger
@@ -130,6 +135,29 @@ func (h *MovieHandler) GetMovie(w http.ResponseWriter, r *http.Request) {
 
 	if h.writeJSONResponse(w, response) == nil {
 		h.logger.Info("Successfully served movie with ID: " + idStr)
+	}
+}
+
+func (h *MovieHandler) GetActor(w http.ResponseWriter, r *http.Request) {
+
+	idStr := r.URL.Path[len("/api/actor/"):]
+	id, ok := h.parseID(w, idStr)
+	if !ok {
+		return
+	}
+
+	actor, movies, err := h.storage.GetMoviesActorById(id)
+	if h.handleStorageError(w, err, "Failed to get actor by ID") {
+		return
+	}
+
+	response := ActorResponse{
+		Actor:         actor,
+		RelatedMovies: movies,
+	}
+
+	if h.writeJSONResponse(w, response) == nil {
+		h.logger.Info("Successfully served actor with ID: " + idStr)
 	}
 }
 

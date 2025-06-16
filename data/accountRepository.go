@@ -335,6 +335,7 @@ func (r *AccountRepository) GetAccountDetails(email string) (models.User, error)
 		FROM movies m
 		JOIN user_movies um ON m.id = um.movie_id
 		WHERE um.user_id = $1 AND um.relation_type = 'favorite'
+		ORDER BY um.time_added
 	`
 	favoriteRows, err := r.db.Query(favoritesQuery, user.ID)
 	if err != nil {
@@ -364,6 +365,7 @@ func (r *AccountRepository) GetAccountDetails(email string) (models.User, error)
 		FROM movies m
 		JOIN user_movies um ON m.id = um.movie_id
 		WHERE um.user_id = $1 AND um.relation_type = 'watchlist'
+		ORDER BY um.time_added
 	`
 	watchlistRows, err := r.db.Query(watchlistQuery, user.ID)
 	if err != nil {
@@ -416,30 +418,12 @@ func (r *AccountRepository) SaveCollection(user models.User, movieID int, collec
 		return false, err
 	}
 
-	// Check if the relationship already exists
-	var exists bool
-	err = r.db.QueryRow(`
-		SELECT EXISTS(
-			SELECT 1
-			FROM user_movies
-			WHERE user_id = $1
-			AND movie_id = $2
-			AND relation_type = $3
-		)
-	`, userID, movieID, collection).Scan(&exists)
-	if err != nil {
-		r.logger.Error("Failed to check existing collection entry", err)
-		return false, err
-	}
-	if exists {
-		r.logger.Info("Movie already in " + collection + " for user")
-		return true, nil // Return true since the movie is already in the collection
-	}
-
 	// Insert the new relationship
 	query := `
 		INSERT INTO user_movies (user_id, movie_id, relation_type, time_added)
 		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (user_id, movie_id)
+		DO UPDATE SET relation_type = EXCLUDED.relation_type;
 	`
 	_, err = r.db.Exec(query, userID, movieID, collection, time.Now())
 	if err != nil {

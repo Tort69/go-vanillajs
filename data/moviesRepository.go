@@ -157,6 +157,65 @@ func (r *MovieRepository) GetMovieByID(id int, email string) (models.Movie, []mo
 	return m, related_movies, nil
 }
 
+func (r *MovieRepository) GetMoviesActorById(id int) (models.Actor, []models.Movie, error) {
+	var actor models.Actor
+
+	query := `
+		SELECT id, first_name, last_name, image_url
+		FROM actors
+		WHERE id = $1
+	`
+
+	err := r.db.QueryRow(query, id).Scan(
+		&actor.ID,
+		&actor.FirstName,
+		&actor.LastName,
+		&actor.ImageURL,
+	)
+
+	if err != nil {
+		r.logger.Error("Actor not found", err)
+		return models.Actor{}, []models.Movie{}, err
+	}
+
+	query = `SELECT  m.id,
+						m.tmdb_id,
+						m.title,
+						m.tagline,
+						m.release_year,
+						m.overview,
+						m.score,
+						m.popularity,
+						m.language,
+						m.poster_url,
+						m.trailer_url
+						FROM movies m
+						JOIN movie_cast mc ON m.id = mc.movie_id
+						WHERE mc.actor_id = $1;`
+
+	rows, err := r.db.Query(query, id)
+	if err != nil {
+		r.logger.Error("Failed to query movies", err)
+		return models.Actor{}, []models.Movie{}, err
+	}
+	defer rows.Close()
+
+	var movies []models.Movie
+	for rows.Next() {
+		var m models.Movie
+		if err := rows.Scan(
+			&m.ID, &m.TMDB_ID, &m.Title, &m.Tagline, &m.ReleaseYear,
+			&m.Overview, &m.Score, &m.Popularity, &m.Language,
+			&m.PosterURL, &m.TrailerURL,
+		); err != nil {
+			r.logger.Error("Failed to scan movie row", err)
+			return models.Actor{}, []models.Movie{}, err
+		}
+		movies = append(movies, m)
+	}
+	return actor, movies, nil
+}
+
 func (r *MovieRepository) SearchMoviesByName(name string, order string, genre *int) ([]models.Movie, error) {
 	orderBy := "popularity DESC"
 	switch order {

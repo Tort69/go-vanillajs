@@ -8,6 +8,7 @@ import RegisterPage from '../components/RegisterPage.js'
 import VerifyPage from '../components/VerifyPage.js'
 import WatchlistPage from '../components/WatchlistPage.js'
 import ConfirmedMailPage from '../components/ConfirmedMailPage.js'
+import ActorDetailPage from '../components/ActorDetailsPage.js'
 
 export const routes = [
   {
@@ -25,6 +26,7 @@ export const routes = [
     component: MovieDetailsPage,
     loggedIn: false,
   },
+
   {
     path: '/account/register',
     component: RegisterPage,
@@ -58,6 +60,11 @@ export const routes = [
   {
     path: '/account/verify',
     component: ConfirmedMailPage,
+    loggedIn: false,
+  },
+  {
+    path: /\/actor\/(\d+)/,
+    component: ActorDetailPage,
     loggedIn: false,
   },
 ]

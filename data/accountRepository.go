@@ -51,7 +51,7 @@ func (r *AccountRepository) ResetPassword(email string, currentPassword string, 
 	// Verify password
 	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHashed), []byte(currentPassword))
 	if err != nil {
-		r.logger.Error("Current password mismatch for email: "+email, nil)
+		r.logger.Error("Password mismatch for email: "+email, nil)
 		return false, ErrAuthenticationValidation
 	}
 
@@ -390,7 +390,7 @@ func (r *AccountRepository) GetAccountDetails(email string) (models.User, error)
 	return user, nil
 }
 
-func (r *AccountRepository) SaveCollection(user models.User, movieID int, collection string) (bool, error) {
+func (r *AccountRepository) SaveCollection(user models.User, movieID int, collection string, score *int) (bool, error) {
 
 	// Validate inputs
 	if movieID <= 0 {
@@ -419,13 +419,23 @@ func (r *AccountRepository) SaveCollection(user models.User, movieID int, collec
 	}
 
 	// Insert the new relationship
+	// if score != nil && collection == "favorite" {
 	query := `
-		INSERT INTO user_movies (user_id, movie_id, relation_type, time_added)
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO user_movies (user_id, movie_id, relation_type, time_added, user_score)
+		VALUES ($1, $2, $3, $4, $5)
 		ON CONFLICT (user_id, movie_id)
-		DO UPDATE SET relation_type = EXCLUDED.relation_type;
+		DO UPDATE SET relation_type = EXCLUDED.relation_type, user_score = $5;
 	`
-	_, err = r.db.Exec(query, userID, movieID, collection, time.Now())
+	// } else {
+	// 	query := `
+	// 		INSERT INTO user_movies (user_id, movie_id, relation_type, time_added, score)
+	// 		VALUES ($1, $2, $3, $4)
+	// 		ON CONFLICT (user_id, movie_id)
+	// 		DO UPDATE SET relation_type = EXCLUDED.relation_type;
+	// 	`
+
+	// }
+	_, err = r.db.Exec(query, userID, movieID, collection, time.Now(), score)
 	if err != nil {
 		r.logger.Error("Failed to save movie to "+collection, err)
 		return false, err

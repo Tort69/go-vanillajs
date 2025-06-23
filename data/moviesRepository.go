@@ -32,7 +32,7 @@ func (r *MovieRepository) GetTopMovies() ([]models.Movie, error) {
 		       popularity, language, poster_url, trailer_url
 		FROM movies
 		ORDER BY popularity DESC
-		LIMIT $1
+		LIMIT 20
 	`
 	return r.getMovies(query)
 }
@@ -44,13 +44,60 @@ func (r *MovieRepository) GetRandomMovies() ([]models.Movie, error) {
 		       popularity, language, poster_url, trailer_url
 		FROM movies
 		ORDER BY random()
-		LIMIT $1
+		LIMIT 20
 	`
 	return r.getMovies(randomQuery)
 }
 
+func (r *MovieRepository) GetAllMovies(offset int, pageSize int) ([]models.Movie, int, error) {
+	// Fetch movies
+	query := `
+				SELECT
+				id,
+				tmdb_id,
+				title,
+				tagline,
+				release_year,
+				overview,
+				score,
+		    popularity,
+				language,
+				poster_url,
+				trailer_url
+        FROM movies
+        ORDER BY release_year desc
+        LIMIT 20 OFFSET 1;
+`
+
+	rows, err := r.db.Query(query)
+	// , pageSize, offset
+	if err != nil {
+		r.logger.Error("Failed to query movies", err)
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var movies []models.Movie
+	for rows.Next() {
+		var m models.Movie
+		if err := rows.Scan(
+			&m.ID, &m.TMDB_ID, &m.Title, &m.Tagline, &m.ReleaseYear,
+			&m.Overview, &m.Score, &m.Popularity, &m.Language,
+			&m.PosterURL, &m.TrailerURL,
+		); err != nil {
+			r.logger.Error("Failed to scan movie row", err)
+			return nil, 0, err
+		}
+		movies = append(movies, m)
+	}
+	var totalCount int
+	r.db.QueryRow("SELECT COUNT(*) FROM movies").Scan(&totalCount)
+
+	return movies, totalCount, nil
+}
+
 func (r *MovieRepository) getMovies(query string) ([]models.Movie, error) {
-	rows, err := r.db.Query(query, defaultLimit)
+	rows, err := r.db.Query(query)
 	if err != nil {
 		r.logger.Error("Failed to query movies", err)
 		return nil, err
@@ -107,15 +154,16 @@ func (r *MovieRepository) GetMovieByID(id int, email string) (models.Movie, []mo
     m.language,
     m.poster_url,
     m.trailer_url,
+		um.user_score,
     CONCAT(
         CASE
             WHEN MAX(CASE WHEN um.relation_type = 'favorite' THEN 1 ELSE 0 END) = 1 THEN 'In Favorite'
-            ELSE 'Not in Favorite'
+            ELSE 'Not Favorite'
         END,
         ', ',
         CASE
             WHEN MAX(CASE WHEN um.relation_type = 'watchlist' THEN 1 ELSE 0 END) = 1 THEN 'In Watchlist'
-            ELSE 'Not in Watchlist'
+            ELSE 'Not Watchlist'
         END
     ) AS status
 		FROM movies m
@@ -123,15 +171,16 @@ func (r *MovieRepository) GetMovieByID(id int, email string) (models.Movie, []mo
 				ON m.id = um.movie_id
 				AND um.user_id = $1
 		WHERE m.id = $2
-		GROUP BY m.id, m.tmdb_id, m.title, m.tagline, m.release_year, m.overview, m.score, m.popularity, m.language, m.poster_url, m.trailer_url;
+		GROUP BY m.id, m.tmdb_id, m.title, m.tagline, m.release_year, m.overview, m.score, m.popularity, m.language, m.poster_url, m.trailer_url,um.user_score;
 	`
 	row := r.db.QueryRow(query, user.ID, id)
 
+	var userScore sql.NullInt16
 	var m models.Movie
 	err = row.Scan(
 		&m.ID, &m.TMDB_ID, &m.Title, &m.Tagline, &m.ReleaseYear,
 		&m.Overview, &m.Score, &m.Popularity, &m.Language,
-		&m.PosterURL, &m.TrailerURL, &m.Status,
+		&m.PosterURL, &m.TrailerURL, &userScore, &m.Status,
 	)
 	if err == sql.ErrNoRows {
 		r.logger.Error("Movie not found", ErrMovieNotFound)
@@ -140,6 +189,12 @@ func (r *MovieRepository) GetMovieByID(id int, email string) (models.Movie, []mo
 	if err != nil {
 		r.logger.Error("Failed to query movie by ID", err)
 		return models.Movie{}, []models.Movie{}, err
+	}
+	if userScore.Valid {
+		score := int(userScore.Int16)
+		m.UserScore = &score
+	} else {
+		m.UserScore = nil
 	}
 
 	// Fetch related data
@@ -216,55 +271,81 @@ func (r *MovieRepository) GetMoviesActorById(id int) (models.Actor, []models.Mov
 	return actor, movies, nil
 }
 
-func (r *MovieRepository) SearchMoviesByName(name string, order string, genre *int) ([]models.Movie, error) {
-	orderBy := "popularity DESC"
+func (r *MovieRepository) SearchMoviesByName(name *string, order string, genre *int, releaseYear *int, page int, pageSize int) ([]models.Movie, int, error) {
+	orderBy := "release_year DESC"
 	switch order {
 	case "score":
 		orderBy = "score DESC"
 	case "name":
 		orderBy = "title"
-	case "date":
-		orderBy = "release_year DESC"
+	case "popularity":
+		orderBy = "popularity DESC"
 	}
 
-	genreFilter := ""
-	if genre != nil {
-		genreFilter = ` AND ((SELECT COUNT(*) FROM movie_genres
-								WHERE movie_id=movies.id
-								AND genre_id=` + strconv.Itoa(*genre) + `) = 1) `
-	}
+	// genreFilter := ""
+	// if genre != nil {
+	// 	genreFilter = strconv.Itoa(*genre)
+	// }
 
+	// releaseYearFilter := ""
+	// if releaseYear != nil {
+	// 	releaseYearFilter = strconv.Itoa(*releaseYear)
+	// }
 	// Fetch movies by name
-	query := `
-		SELECT id, tmdb_id, title, tagline, release_year, overview, score,
-		       popularity, language, poster_url, trailer_url
-		FROM movies
-		WHERE (title ILIKE $1 OR overview ILIKE $1) ` + genreFilter + `
-		ORDER BY ` + orderBy + `
-		LIMIT $2
-	`
-	rows, err := r.db.Query(query, "%"+name+"%", defaultLimit)
+	// query := `
+	// 	SELECT id, tmdb_id, title, tagline, release_year, overview, score,
+	// 	       popularity, language, poster_url, trailer_url, SELECT COUNT(*) as totalCount
+	// 	FROM movies
+	// 	WHERE (title ILIKE $1 OR overview ILIKE $1) ` + genreFilter + `
+	// 	ORDER BY ` + orderBy + `
+	// 	LIMIT $2 OFFSET $3;
+	// `
+
+	querySql := `WITH filtered_movies AS (
+  SELECT
+    id, tmdb_id, title, tagline, release_year,
+    overview, score, popularity, language,
+    poster_url, trailer_url,
+    COUNT(*) OVER() AS total_count
+  FROM movies
+  WHERE
+     ($1::INTEGER IS NULL OR EXISTS (
+      SELECT 1 FROM movie_genres
+      WHERE movie_id = movies.id AND genre_id = $1::INTEGER
+    ))
+    AND ($2::TEXT IS NULL OR title ILIKE '%%'|| $2::TEXT || '%%')
+    AND ($3::INTEGER IS NULL OR release_year = $3::INTEGER)
+)
+SELECT *
+FROM filtered_movies
+ORDER BY $4::TEXT
+LIMIT $5::INTEGER
+OFFSET $6::INTEGER;`
+
+	rows, err := r.db.Query(querySql, genre, name, releaseYear, orderBy, pageSize, page)
 	if err != nil {
 		r.logger.Error("Failed to search movies by name", err)
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
 	var movies []models.Movie
+	var totalCount int
 	for rows.Next() {
 		var m models.Movie
 		if err := rows.Scan(
 			&m.ID, &m.TMDB_ID, &m.Title, &m.Tagline, &m.ReleaseYear,
 			&m.Overview, &m.Score, &m.Popularity, &m.Language,
-			&m.PosterURL, &m.TrailerURL,
+			&m.PosterURL, &m.TrailerURL, &totalCount,
 		); err != nil {
 			r.logger.Error("Failed to scan movie row", err)
-			return nil, err
+			return nil, 0, err
+
 		}
 		movies = append(movies, m)
 	}
 
-	return movies, nil
+	return movies, totalCount, nil
 }
 
 func (r *MovieRepository) GetAllGenres() ([]models.Genre, error) {

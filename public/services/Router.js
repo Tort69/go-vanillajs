@@ -31,7 +31,6 @@ const Router = {
           const params = match.slice(1)
           pageElement = new r.component()
           pageElement.loggedIn = r.loggedIn
-          console.log(params)
           pageElement.params = params
         }
       }

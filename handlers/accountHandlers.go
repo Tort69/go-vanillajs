@@ -270,6 +270,7 @@ func (h *AccountHandler) SaveToCollection(w http.ResponseWriter, r *http.Request
 	type CollectionRequest struct {
 		MovieID    int    `json:"movie_id"`
 		Collection string `json:"collection"`
+		Score      *int   `json:"score"`
 	}
 
 	var req CollectionRequest
@@ -286,7 +287,7 @@ func (h *AccountHandler) SaveToCollection(w http.ResponseWriter, r *http.Request
 	}
 
 	success, err := h.storage.SaveCollection(models.User{Email: email},
-		req.MovieID, req.Collection)
+		req.MovieID, req.Collection, req.Score)
 	if h.handleStorageError(w, err, "Failed to save to collection") {
 		return
 	}

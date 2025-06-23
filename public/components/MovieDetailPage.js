@@ -17,10 +17,15 @@ export default class MovieDetailsPage extends HTMLElement {
     this.appendChild(content)
     const movieListStatus = this.response.movie.status
     if (movieListStatus.includes('In Favorite')) {
+      document.querySelector('#btnWatchlist').style.display = 'none'
       this.querySelector('#btnFavorites').textContent = 'Unlist Favorite'
       this.querySelector('#btnFavorites').addEventListener('click', () => {
         app.deleteToCollection(this.response.movie.id, 'favorite')
       })
+      const divHtml = document.createElement('div')
+      divHtml.classList.add('user-score')
+      divHtml.textContent = `Your Score ${this.response.movie.user_score}`
+      this.querySelector('.btn-wrapper').appendChild(divHtml)
     } else {
       this.querySelector('#btnFavorites').addEventListener('click', () => {
         app.openMovieRatingModal()
@@ -32,7 +37,7 @@ export default class MovieDetailsPage extends HTMLElement {
         })
       } else {
         this.querySelector('#btnWatchlist').addEventListener('click', () => {
-          app.saveToCollection(this.response.movie.id, 'watchlist')
+          app.saveCollection(this.response.movie.id, 'watchlist')
         })
       }
     }

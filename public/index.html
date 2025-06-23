@@ -54,6 +54,23 @@
     <button class="action-btn" onclick="app.closeError()">OK</button>
   </dialog>
 
+  <dialog id="rating-modal">
+    <h3>Movie review</h3>
+    <div class="rating-container">
+      <div class="slider-container">
+        <input type="range" min="1" max="10" value="5" class="slider" id="ratingSlider" step="1">
+        <div class="value-display">
+          Рейтинг: <span id="ratingValue">5</span>
+        </div>
+      </div>
+      <div class="rating-wrapper-button">
+        <button class="action-btn" id="rating-action-btn">Добавить в Избранное</button>
+        <button class="cancel-btn" id="cancelBtn" onclick="document.querySelector('#rating-modal').close()">Отмена</button>
+      </div>
+    </div>
+  </dialog>
+
+
   <template id="template-movies">
     <section>
       <div id="search-header">
@@ -74,6 +91,8 @@
         <animated-loading data-elements="5" data-width="150px" data-height="220px">
         </animated-loading>
       </ul>
+      <pagination-component></pagination-component>
+
     </section>
   </template>
 
@@ -94,6 +113,10 @@
         </animated-loading>
       </ul>
     </section>
+    <section id="all-movies" >
+      <h2>All movies</h2>
+      <movies-page></movies-page>
+    </section>
   </template>
 
     <template id="template-movie-details">
@@ -106,6 +129,7 @@
           <section id="actions">
             <dl id="metadata">
             </dl>
+            <div class="btn-wrapper"></div>
             <button id="btnFavorites">Add to Favorites</button>
             <button id="btnWatchlist">Add to Watchlist</button>
           </section>
@@ -128,6 +152,24 @@
         <ul id="cast"></ul>
       </article>
     </template>
+
+    <template id="template-actor-details">
+      <article id="actor">
+        <h2><animated-loading elements="1"></animated-loading></h2>
+        <h3></h3>
+        <header>
+          <img src="" alt="Poster" onerror="this.onerror=null; this.src='/images/generic_actor.jpg'">
+        </header>
+        <section class="vertical-scroll" id="wrapper-actor-movies">
+          <h3>Movies with actor</h3>
+          <ul id="actor-movies">
+            <animated-loading data-elements="5" data-width="150px" data-height="220px">
+            </animated-loading>
+          </ul>
+        </section>
+      </article>
+    </template>
+
 
     <template id="template-register">
       <section>
@@ -209,6 +251,9 @@
         </ul>
       </section>
     </template>
+
+
+
 
 
 

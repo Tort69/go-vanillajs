@@ -7,7 +7,6 @@ export default class MovieItemComponent extends HTMLElement {
   }
 
   connectedCallback() {
-    console.log(this.isDelete, this.title)
     const url = '/movies/' + this.movie.id
 
     if (this.isDelete) {

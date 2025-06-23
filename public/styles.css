@@ -140,6 +140,16 @@ ul {
     text-align: center;
 }
 
+#all-movies {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    overflow: hidden;
+
+}
+
 movie-item {
     width: 150px;
     display: block;
@@ -422,6 +432,19 @@ button:hover {
     border-bottom-left-radius: 10px;
 }
 
+
+.btn-wrapper {
+    display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap:50px
+}
+
+.user-score {
+    font-size: 1rem;
+    color:#0AC189;
+}
+
 label {
     display: block;
     color:var(--textColor);
@@ -484,30 +507,26 @@ input[type=text],input[type=password],input[type=email] {
     transform: rotate(90deg);
 }
 
-.movieArrow::before,
-.movieArrow::after {
-    content: '';
-    position: absolute;
-    width: 14px;
-    height: 2px;
-    background: #ff4444;
-    left: 50%;
-    top: 50%;
-}
-
-.movieArrow::before {
-    transform: translate(-50%, -50%) rotate(45deg);
-}
-
-.movieArrow::after {
-    transform: translate(-50%, -50%) rotate(-45deg);
-}
 
 .movieArrow:focus {
     outline: 2px solid #0066cc;
 }
 
 
+
+.rating-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+}
+
+.rating-wrapper-button {
+    display: flex;
+        flex-direction: column;
+        justify-content: center;
+        text-align: center;
+}
 
 .password-modal {
     display: none;

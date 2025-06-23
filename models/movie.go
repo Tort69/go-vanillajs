@@ -16,4 +16,5 @@ type Movie struct {
 	TrailerURL  *string  `json:"trailer_url,omitempty"`
 	Casting     []Actor  `json:"casting"`
 	Status      *string  `json:"status"`
+	UserScore   *int     `json:"user_score"`
 }

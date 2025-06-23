@@ -7,9 +7,10 @@ import MoviesPage from './components/MoviesPage.js'
 import { routes } from './services/Routes.js'
 import ResetPasswordModal from './components/ResetPasswordModal.js'
 import Store from './services/Store.js'
-import API from './services/API.js'
+import API from './services/api.js'
 import startTimer, { getRemainingTime } from './utils/startTimer.js'
 import MovieRatingModal from './components/MovieRatingModal.js'
+import PaginationComponent from './components/PaginationComponent.js'
 
 window.app = {
   API,
@@ -35,11 +36,23 @@ window.app = {
     document.querySelector('password-modal').close()
   },
   openMovieRatingModal: () => {
-    document.querySelector('main').appendChild(new MovieRatingModal())
-    // document.querySelector('movie-rating-modal').open()
+    const modal = document.querySelector('#rating-modal')
+    modal.showModal()
+    const slider = document.getElementById('ratingSlider')
+    const ratingValue = document.getElementById('ratingValue')
+    slider.addEventListener('change', () => {
+      ratingValue.textContent = slider.value
+    })
+    document
+      .querySelector('#rating-action-btn')
+      .addEventListener('click', () => {
+        const id = window.location.href.split('movies/')
+        app.saveCollection(parseInt(id[1]), 'favorite', parseInt(slider.value))
+        modal.close()
+      })
   },
   closeMovieRatingModal: () => {
-    document.querySelector('movie-rating-modal').close()
+    document.getElementById('rating-modal').close()
   },
   search: (event) => {
     event.preventDefault()
@@ -104,7 +117,7 @@ window.app = {
       )
       if (response?.success) {
         app.closeModal()
-        app.showModal('Password successfully changed', false)
+        app.showError('Password successfully changed', false)
       }
     } catch (e) {
       app.showError(e.message, false)
@@ -160,10 +173,10 @@ window.app = {
       app.Router.go('/')
     }
   },
-  saveToCollection: async (movie_id, collection) => {
+  saveCollection: async (movie_id, collection, score = null) => {
     if (app.Store.loggedIn) {
       try {
-        const response = await API.saveToCollection(movie_id, collection)
+        const response = await API.saveToCollection(movie_id, collection, score)
         if (response.success) {
           switch (collection) {
             case 'favorite':

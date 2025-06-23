@@ -3,16 +3,33 @@ import Router from './Router.js'
 export const API = {
   baseURL: '/api/',
   getTopMovies: async () => {
-    return await API.fetch('movies/top')
+    return await API.fetch('movies/top/')
   },
   getRandomMovies: async () => {
-    return await API.fetch('movies/random')
+    return await API.fetch('movies/random/')
+  },
+  getAllMovies: async (page = 1, pageSize = 100) => {
+    return await API.fetch('movies/all-movies/', { page, pageSize })
   },
   getMovieById: async (id) => {
     return await API.fetch(`movies/${id}`)
   },
-  searchMovies: async (q, order, genre) => {
-    return await API.fetch(`movies/search/`, { q, order, genre })
+  searchMovies: async (
+    query,
+    order,
+    genre,
+    releaseYear,
+    page = 1,
+    pageSize = 50
+  ) => {
+    return await API.fetch(`movies/search/`, {
+      query,
+      order,
+      genre,
+      releaseYear,
+      page,
+      pageSize,
+    })
   },
   getGenres: async () => {
     return await API.fetch('genres/')
@@ -68,11 +85,12 @@ export const API = {
       app.Router.go('account/')
     }
   },
-  saveToCollection: async (movie_id, collection) => {
+  saveToCollection: async (movie_id, collection, score) => {
     try {
       return await API.send('account/save-to-collection/', {
         movie_id,
         collection,
+        score,
       })
     } catch (e) {
       app.Router.go('account/')

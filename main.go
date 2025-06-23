@@ -67,6 +67,8 @@ func main() {
 	http.HandleFunc("/api/movies/top/", movieHandler.GetTopMovies)
 	http.HandleFunc("/api/movies/search/", movieHandler.SearchMovies)
 	http.HandleFunc("/api/movies/", movieHandler.GetMovie)
+	// http.HandleFunc("/api/movies/all-movies", movieHandler.GetAllMovies)
+	http.HandleFunc("/api/movies/all-movies/", movieHandler.HandlerGetAllMovies)
 	http.HandleFunc("/api/actor/", movieHandler.GetActor)
 	http.HandleFunc("/api/genres/", movieHandler.GetGenres)
 	http.HandleFunc("/api/account/register/", accountHandler.Register)
@@ -102,7 +104,6 @@ func main() {
 	http.HandleFunc("/movies/", catchAllHandler)
 	http.HandleFunc("/actor/", catchAllHandler)
 	http.HandleFunc("/account/", catchAllHandler)
-	// http.Handle("/account/", accountHandler.AuthMiddleware(http.HandlerFunc(catchAllHandler)))
 	http.HandleFunc("/account/verify", catchAllHandler)
 
 	http.Handle("/", http.FileServer(http.Dir("public")))

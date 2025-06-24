@@ -1,6 +1,7 @@
 package data
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"strconv"
@@ -8,15 +9,31 @@ import (
 	"Allusion/logger"
 	"Allusion/models"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/lib/pq"
 )
 
 type MovieRepository struct {
-	db     *sql.DB
+	db     *pgxpool.Pool
 	logger *logger.Logger
 }
 
-func NewMovieRepository(db *sql.DB, log *logger.Logger) (*MovieRepository, error) {
+type MoviesPagination struct {
+	ID          int      `json:"id"`
+	TMDB_ID     int      `json:"tmdb_id,omitempty"`
+	Title       string   `json:"title"`
+	Tagline     *string  `json:"tagline,omitempty"`
+	ReleaseYear int      `json:"release_year"`
+	Overview    *string  `json:"overview,omitempty"`
+	Score       *float32 `json:"score,omitempty"`
+	Popularity  *float32 `json:"popularity,omitempty"`
+	Language    *string  `json:"language,omitempty"`
+	PosterURL   *string  `json:"poster_url,omitempty"`
+	TrailerURL  *string  `json:"trailer_url,omitempty"`
+	TotalCount  int      `json:"total_count"`
+}
+
+func NewMovieRepository(db *pgxpool.Pool, log *logger.Logger) (*MovieRepository, error) {
 	return &MovieRepository{
 		db:     db,
 		logger: log,
@@ -68,8 +85,7 @@ func (r *MovieRepository) GetAllMovies(offset int, pageSize int) ([]models.Movie
         ORDER BY release_year desc
         LIMIT 20 OFFSET 1;
 `
-
-	rows, err := r.db.Query(query)
+	rows, err := r.db.Query(context.Background(), query)
 	// , pageSize, offset
 	if err != nil {
 		r.logger.Error("Failed to query movies", err)
@@ -91,13 +107,13 @@ func (r *MovieRepository) GetAllMovies(offset int, pageSize int) ([]models.Movie
 		movies = append(movies, m)
 	}
 	var totalCount int
-	r.db.QueryRow("SELECT COUNT(*) FROM movies").Scan(&totalCount)
+	r.db.QueryRow(context.Background(), "SELECT COUNT(*) FROM movies").Scan(&totalCount)
 
 	return movies, totalCount, nil
 }
 
 func (r *MovieRepository) getMovies(query string) ([]models.Movie, error) {
-	rows, err := r.db.Query(query)
+	rows, err := r.db.Query(context.Background(), query)
 	if err != nil {
 		r.logger.Error("Failed to query movies", err)
 		return nil, err
@@ -128,7 +144,7 @@ func (r *MovieRepository) GetMovieByID(id int, email string) (models.Movie, []mo
 		FROM users
 		WHERE email = $1 AND time_deleted IS NULL
 	`
-	err := r.db.QueryRow(query, email).Scan(
+	err := r.db.QueryRow(context.Background(), query, email).Scan(
 		&user.ID,
 		&user.Name,
 		&user.Email,
@@ -173,7 +189,7 @@ func (r *MovieRepository) GetMovieByID(id int, email string) (models.Movie, []mo
 		WHERE m.id = $2
 		GROUP BY m.id, m.tmdb_id, m.title, m.tagline, m.release_year, m.overview, m.score, m.popularity, m.language, m.poster_url, m.trailer_url,um.user_score;
 	`
-	row := r.db.QueryRow(query, user.ID, id)
+	row := r.db.QueryRow(context.Background(), query, user.ID, id)
 
 	var userScore sql.NullInt16
 	var m models.Movie
@@ -221,7 +237,7 @@ func (r *MovieRepository) GetMoviesActorById(id int) (models.Actor, []models.Mov
 		WHERE id = $1
 	`
 
-	err := r.db.QueryRow(query, id).Scan(
+	err := r.db.QueryRow(context.Background(), query, id).Scan(
 		&actor.ID,
 		&actor.FirstName,
 		&actor.LastName,
@@ -248,7 +264,7 @@ func (r *MovieRepository) GetMoviesActorById(id int) (models.Actor, []models.Mov
 						JOIN movie_cast mc ON m.id = mc.movie_id
 						WHERE mc.actor_id = $1;`
 
-	rows, err := r.db.Query(query, id)
+	rows, err := r.db.Query(context.Background(), query, id)
 	if err != nil {
 		r.logger.Error("Failed to query movies", err)
 		return models.Actor{}, []models.Movie{}, err
@@ -271,7 +287,7 @@ func (r *MovieRepository) GetMoviesActorById(id int) (models.Actor, []models.Mov
 	return actor, movies, nil
 }
 
-func (r *MovieRepository) SearchMoviesByName(name *string, order string, genre *int, releaseYear *int, page int, pageSize int) ([]models.Movie, int, error) {
+func (r *MovieRepository) SearchMoviesByName(name *string, order string, genre *int, releaseYear *int, page int, pageSize int) ([]MoviesPagination, error) {
 	orderBy := "release_year DESC"
 	switch order {
 	case "score":
@@ -315,42 +331,58 @@ func (r *MovieRepository) SearchMoviesByName(name *string, order string, genre *
     ))
     AND ($2::TEXT IS NULL OR title ILIKE '%%'|| $2::TEXT || '%%')
     AND ($3::INTEGER IS NULL OR release_year = $3::INTEGER)
-)
-SELECT *
-FROM filtered_movies
-ORDER BY $4::TEXT
-LIMIT $5::INTEGER
-OFFSET $6::INTEGER;`
+		)
+		SELECT *
+		FROM filtered_movies
+		ORDER BY ` + orderBy + `
+		LIMIT $4
+		OFFSET $5;`
+	// , genre, name, releaseYear, orderBy, pageSize, page
+	// _, err := r.db.Exec(context.Background(), querySql, genre, name, releaseYear, orderBy, pageSize, page)
+	// if err != nil {
+	// 	r.logger.Error("Failed to search movies by name", err)
+	// 	return nil, err
+	// }
 
-	rows, err := r.db.Query(querySql, genre, name, releaseYear, orderBy, pageSize, page)
+	// querySql = `
+	// SELECT *
+
+	rows, err := r.db.Query(context.Background(), querySql, genre, name, releaseYear, pageSize, page)
 	if err != nil {
 		r.logger.Error("Failed to search movies by name", err)
-		return nil, 0, err
+		return nil, err
 	}
 	defer rows.Close()
+	// movies, err = pgxpool. CollectRows(rows, pgx.RowToStructByName[MoviesPagination])
 
-	var movies []models.Movie
-	var totalCount int
+	var movies []MoviesPagination
 	for rows.Next() {
-		var m models.Movie
-		if err := rows.Scan(
+		var m MoviesPagination
+		err := rows.Scan(
 			&m.ID, &m.TMDB_ID, &m.Title, &m.Tagline, &m.ReleaseYear,
 			&m.Overview, &m.Score, &m.Popularity, &m.Language,
-			&m.PosterURL, &m.TrailerURL, &totalCount,
-		); err != nil {
+			&m.PosterURL, &m.TrailerURL, &m.TotalCount,
+		)
+		if err != nil {
 			r.logger.Error("Failed to scan movie row", err)
-			return nil, 0, err
-
+			return nil, err
 		}
 		movies = append(movies, m)
 	}
+	_, err = r.db.Exec(context.Background(),
+		`DROP TABLE IF EXISTS temp_filtered_movies;`)
 
-	return movies, totalCount, nil
+	if err != nil {
+		r.logger.Error("Failed to search movies by name", err)
+		return nil, err
+	}
+
+	return movies, nil
 }
 
 func (r *MovieRepository) GetAllGenres() ([]models.Genre, error) {
 	query := `SELECT id, name FROM genres ORDER BY id`
-	rows, err := r.db.Query(query)
+	rows, err := r.db.Query(context.Background(), query)
 	if err != nil {
 		r.logger.Error("Failed to query all genres", err)
 		return nil, err
@@ -378,7 +410,7 @@ func (r *MovieRepository) fetchMovieRelations(m *models.Movie) error {
 		JOIN movie_genres mg ON g.id = mg.genre_id
 		WHERE mg.movie_id = $1
 	`
-	genreRows, err := r.db.Query(genreQuery, m.ID)
+	genreRows, err := r.db.Query(context.Background(), genreQuery, m.ID)
 	if err != nil {
 		r.logger.Error("Failed to query genres for movie "+strconv.Itoa(m.ID), err)
 		return err
@@ -400,7 +432,7 @@ func (r *MovieRepository) fetchMovieRelations(m *models.Movie) error {
 		JOIN movie_cast mc ON a.id = mc.actor_id
 		WHERE mc.movie_id = $1
 	`
-	actorRows, err := r.db.Query(actorQuery, m.ID)
+	actorRows, err := r.db.Query(context.Background(), actorQuery, m.ID)
 	if err != nil {
 		r.logger.Error("Failed to query actors for movie "+strconv.Itoa(m.ID), err)
 		return err
@@ -422,7 +454,7 @@ func (r *MovieRepository) fetchMovieRelations(m *models.Movie) error {
 		JOIN movie_keywords mk ON k.id = mk.keyword_id
 		WHERE mk.movie_id = $1
 	`
-	keywordRows, err := r.db.Query(keywordQuery, m.ID)
+	keywordRows, err := r.db.Query(context.Background(), keywordQuery, m.ID)
 	if err != nil {
 		r.logger.Error("Failed to query keywords for movie "+strconv.Itoa(m.ID), err)
 		return err
@@ -464,7 +496,7 @@ func (r *MovieRepository) Related_MoviesById(movies *models.Movie) ([]models.Mov
 		ORDER BY match_genre DESC, m.title
 		LIMIT $2;
 			`
-	rows, err := r.db.Query(query, movies.ID, defaultLimit)
+	rows, err := r.db.Query(context.Background(), query, movies.ID, defaultLimit)
 	if err != nil {
 		r.logger.Error("Failed to query movies", err)
 		return nil, err

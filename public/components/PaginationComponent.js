@@ -4,12 +4,10 @@ export default class PaginationComponent extends HTMLElement {
     this.currentPage = 1
     this.totalPages = 1
     this.pageSize = 50
-    this.response = {}
   }
 
   connectedCallback() {
     this.render()
-    this.addEventListeners()
   }
 
   render() {
@@ -33,6 +31,15 @@ export default class PaginationComponent extends HTMLElement {
     prevButton.textContent = '←'
     prevButton.disabled = this.currentPage === 1
     prevButton.dataset.page = this.currentPage - 1
+    prevButton.addEventListener('click', () => {
+      const urlParams = new URLSearchParams(window.location.search)
+      const query = urlParams.get('q') || ''
+      const order = urlParams.get('order') || ''
+      const genre = urlParams.get('genre') || ''
+      app.Router.go(
+        `/movies?q=${query}&order=${order}&genre=${genre}&page=${prevButton.dataset.page}&pageSize=${this.pageSize}`
+      )
+    })
     paginationDiv.appendChild(prevButton)
 
     // Номера страниц
@@ -46,9 +53,13 @@ export default class PaginationComponent extends HTMLElement {
         paginationDiv.appendChild(btn)
         btn.addEventListener('click', () => {
           const urlParams = new URLSearchParams(window.location.search)
-          urlParams.set('page', i)
-          urlParams.set('pageSize', this.pageSize)
-          app.Router.go(window.location.pathname + window.location.search)
+          const query = urlParams.get('q') || ''
+          const order = urlParams.get('order') || ''
+          const genre = urlParams.get('genre') || ''
+          this.currentPage = i
+          app.Router.go(
+            `/movies?q=${query}&order=${order}&genre=${genre}&page=${i}&pageSize=${this.pageSize}`
+          )
         })
       }
     } else {
@@ -61,9 +72,13 @@ export default class PaginationComponent extends HTMLElement {
           paginationDiv.appendChild(btn)
           btn.addEventListener('click', () => {
             const urlParams = new URLSearchParams(window.location.search)
-            urlParams.set('page', i)
-            urlParams.set('pageSize', this.pageSize)
-            app.Router.go(window.location.pathname + window.location.search)
+            const query = urlParams.get('q') || ''
+            const order = urlParams.get('order') || ''
+            const genre = urlParams.get('genre') || ''
+            this.currentPage = i
+            app.Router.go(
+              `/movies?q=${query}&order=${order}&genre=${genre}&page=${i}&pageSize=${this.pageSize}`
+            )
           })
         } else {
           const btn = document.createElement('button')
@@ -73,9 +88,13 @@ export default class PaginationComponent extends HTMLElement {
           paginationDiv.appendChild(btn)
           btn.addEventListener('click', () => {
             const urlParams = new URLSearchParams(window.location.search)
-            urlParams.set('page', i)
-            urlParams.set('pageSize', this.pageSize)
-            app.Router.go(window.location.pathname + window.location.search)
+            const query = urlParams.get('q') || ''
+            const order = urlParams.get('order') || ''
+            const genre = urlParams.get('genre') || ''
+            this.currentPage = i
+            app.Router.go(
+              `/movies?q=${query}&order=${order}&genre=${genre}&page=${i}&pageSize=${this.pageSize}`
+            )
           })
         }
       }
@@ -86,30 +105,22 @@ export default class PaginationComponent extends HTMLElement {
     nextButton.textContent = '→'
     nextButton.disabled = this.currentPage === this.totalPages
     nextButton.dataset.page = this.currentPage + 1
-    paginationDiv.appendChild(nextButton)
-  }
-
-  addEventListeners() {
-    this.addEventListener('click', (e) => {
-      if (e.target.tagName === 'BUTTON') {
-        const newPage = parseInt(e.target.dataset.page)
-        if (!isNaN(newPage)) {
-          this.dispatchEvent(
-            new CustomEvent('page-changed', {
-              detail: newPage,
-              bubbles: true,
-              composed: true,
-            })
-          )
-        }
-      }
+    nextButton.addEventListener('click', () => {
+      const urlParams = new URLSearchParams(window.location.search)
+      const query = urlParams.get('q') || ''
+      const order = urlParams.get('order') || ''
+      const genre = urlParams.get('genre') || ''
+      app.Router.go(
+        `/movies?q=${query}&order=${order}&genre=${genre}&page=${nextButton.dataset.page}&pageSize=${this.pageSize}`
+      )
     })
+    paginationDiv.appendChild(nextButton)
   }
 
   setPages(currentPage, totalPages) {
     this.currentPage = currentPage
     this.totalPages = totalPages
-    this.updateButtons()
+    this.render()
   }
 }
 

@@ -56,22 +56,40 @@ window.app = {
   },
   search: (event) => {
     event.preventDefault()
+    debugger
     const keywords = document.querySelector('input[type=search]').value
-    if (keywords.length > 1) {
-      app.Router.go(`/movies?q=${keywords}`)
+    if (keywords.length > 0) {
+      const urlParams = new URLSearchParams(window.location.search)
+      const order = urlParams.get('order') || ''
+      const genre = urlParams.get('genre') || ''
+      const page = urlParams.get('page') || ''
+      const pageSize = urlParams.get('pageSize') || ''
+
+      app.Router.go(
+        `/movies?q=${keywords}&order=${order}&genre=${genre}&page=${page}&pageSize=${pageSize}`
+      )
     }
   },
   searchOrderChange: (order) => {
     const urlParams = new URLSearchParams(window.location.search)
-    const q = urlParams.get('q')
-    const genre = urlParams.get('genre') ?? ''
-    app.Router.go(`/movies?q=${q}&order=${order}&genre=${genre}`)
+    const query = urlParams.get('q') || ''
+    const genre = urlParams.get('genre') || ''
+    const page = urlParams.get('page') || ''
+    const pageSize = urlParams.get('pageSize') || ''
+
+    app.Router.go(
+      `/movies?q=${query}&order=${order}&genre=${genre}&page=${page}&pageSize=${pageSize}`
+    )
   },
   searchFilterChange: (genre) => {
     const urlParams = new URLSearchParams(window.location.search)
-    const q = urlParams.get('q')
-    const order = urlParams.get('order') ?? ''
-    app.Router.go(`/movies?q=${q}&order=${order}&genre=${genre}`)
+    const query = urlParams.get('q') || ''
+    const order = urlParams.get('order') || ''
+    const page = urlParams.get('page') || ''
+    const pageSize = urlParams.get('pageSize') || ''
+    app.Router.go(
+      `/movies?q=${query}&order=${order}&genre=${genre}&page=${page}&pageSize=${pageSize}`
+    )
   },
   register: async (event) => {
     event.preventDefault()

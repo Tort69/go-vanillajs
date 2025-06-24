@@ -18,10 +18,9 @@ type MovieResponse struct {
 }
 
 type AllMoviesResponse struct {
-	Movies     []models.Movie `json:"movies"`
-	Page       int            `json:"page"`
-	PageSize   int            `json:"pageSize"`
-	TotalCount int            `json:"totalCount"`
+	Movies   []data.MoviesPagination `json:"movies"`
+	Page     int                     `json:"page"`
+	PageSize int                     `json:"pageSize"`
 }
 
 type ActorResponse struct {
@@ -89,58 +88,9 @@ func (h *MovieHandler) GetRandomMovies(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *MovieHandler) HandlerGetAllMovies(w http.ResponseWriter, r *http.Request) {
-	pageStr := r.URL.Query().Get("page")
-	pageSizeStr := r.URL.Query().Get("pageSize")
-
-	page := 1
-	pageSize := 0
-
-	if pageSizeStr != "" {
-		parsedPageSizeStr, err := strconv.Atoi(pageSizeStr)
-		if err != nil {
-			http.Error(w, "Invalid page parameter: must be integer", http.StatusBadRequest)
-			return
-		}
-
-		pageSize = parsedPageSizeStr
-
-	}
-
-	if pageStr != "" {
-		parsedPage, err := strconv.Atoi(pageStr)
-
-		if err != nil {
-			http.Error(w, "Invalid page parameter: must be integer", http.StatusBadRequest)
-			return
-		}
-		if parsedPage < 1 {
-			http.Error(w, "Invalid page value: must be positive integer", http.StatusBadRequest)
-			return
-		}
-		page = parsedPage
-	}
-
-	movies, totalCount, err := h.storage.GetAllMovies(page, pageSize)
-	if h.handleStorageError(w, err, "Failed to get movies") {
-		return
-	}
-
-	response := AllMoviesResponse{
-		Movies:     movies,
-		Page:       page,
-		PageSize:   pageSize,
-		TotalCount: totalCount,
-	}
-
-	if h.writeJSONResponse(w, response) == nil {
-		h.logger.Info("Successfully served all movies")
-	}
-}
-
 func (h *MovieHandler) SearchMovies(w http.ResponseWriter, r *http.Request) {
 
-	queryStr := r.URL.Query().Get("q")
+	queryStr := r.URL.Query().Get("query")
 	order := r.URL.Query().Get("order")
 	genreStr := r.URL.Query().Get("genre")
 	releaseYearStr := r.URL.Query().Get("releaseYear")
@@ -203,20 +153,18 @@ func (h *MovieHandler) SearchMovies(w http.ResponseWriter, r *http.Request) {
 		genre = &genreInt
 	}
 
-	var movies []models.Movie
-	var totalCount int
+	var movies []data.MoviesPagination
 	var err error
-	movies, totalCount, err = h.storage.SearchMoviesByName(query, order, genre, releaseYear, page, pageSize)
+	movies, err = h.storage.SearchMoviesByName(query, order, genre, releaseYear, page, pageSize)
 
 	if h.handleStorageError(w, err, "Failed to get movies") {
 		return
 	}
 
 	response := AllMoviesResponse{
-		Movies:     movies,
-		Page:       page,
-		PageSize:   pageSize,
-		TotalCount: totalCount,
+		Movies:   movies,
+		Page:     page,
+		PageSize: pageSize,
 	}
 	if h.writeJSONResponse(w, response) == nil {
 		h.logger.Info("Successfully served movies")

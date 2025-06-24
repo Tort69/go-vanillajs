@@ -5,11 +5,12 @@ import (
 	"Allusion/handlers"
 	"Allusion/logger"
 	"context"
-	"database/sql"
 	"log"
 	"net/http"
 	"os"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"github.com/redis/go-redis/v9"
@@ -41,11 +42,18 @@ func main() {
 		log.Printf("No .env file found or failed to load: %v", err)
 	}
 
-	dbConnStr := os.Getenv("DATABASE_URL")
-	if dbConnStr == "" {
-		log.Fatalf("DATABASE_URL not set in environment")
+	// dbConnStr := os.Getenv("DATABASE_URL")
+	// if dbConnStr == "" {
+	// 	log.Fatalf("DATABASE_URL not set in environment")
+	// }
+	// db, err := sql.Open("postgres", dbConnStr)
+	connConfig, err := pgxpool.ParseConfig(os.Getenv("DATABASE_URL"))
+
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
 	}
-	db, err := sql.Open("postgres", dbConnStr)
+	connConfig.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
+	db, err := pgxpool.NewWithConfig(ctx, connConfig)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
@@ -68,7 +76,7 @@ func main() {
 	http.HandleFunc("/api/movies/search/", movieHandler.SearchMovies)
 	http.HandleFunc("/api/movies/", movieHandler.GetMovie)
 	// http.HandleFunc("/api/movies/all-movies", movieHandler.GetAllMovies)
-	http.HandleFunc("/api/movies/all-movies/", movieHandler.HandlerGetAllMovies)
+	// http.HandleFunc("/api/movies/all-movies/", movieHandler.HandlerGetAllMovies)
 	http.HandleFunc("/api/actor/", movieHandler.GetActor)
 	http.HandleFunc("/api/genres/", movieHandler.GetGenres)
 	http.HandleFunc("/api/account/register/", accountHandler.Register)

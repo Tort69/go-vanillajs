@@ -22,6 +22,7 @@ export const API = {
     page = 1,
     pageSize = 50
   ) => {
+
     return await API.fetch(`movies/search/`, {
       query,
       order,

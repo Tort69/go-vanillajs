@@ -1,6 +1,7 @@
 package data
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"strconv"
@@ -10,16 +11,17 @@ import (
 	"Allusion/models"
 	"Allusion/utils"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type AccountRepository struct {
-	db     *sql.DB
+	db     *pgxpool.Pool
 	logger *logger.Logger
 }
 
-func NewAccountRepository(db *sql.DB, log *logger.Logger) (*AccountRepository, error) {
+func NewAccountRepository(db *pgxpool.Pool, log *logger.Logger) (*AccountRepository, error) {
 	return &AccountRepository{
 		db:     db,
 		logger: log,
@@ -34,7 +36,7 @@ func (r *AccountRepository) ResetPassword(email string, currentPassword string, 
 		FROM users
 		WHERE email = $1
 	`
-	err := r.db.QueryRow(query, email).Scan(
+	err := r.db.QueryRow(context.Background(), query, email).Scan(
 		&user.Email,
 		&user.PasswordHashed,
 	)
@@ -69,7 +71,7 @@ func (r *AccountRepository) ResetPassword(email string, currentPassword string, 
 `
 
 	var userID int
-	err = r.db.QueryRow(
+	err = r.db.QueryRow(context.Background(),
 		query,
 		string(hashedPassword),
 		email,
@@ -88,7 +90,7 @@ func (r *AccountRepository) ResendVerifyEmail(email string) (bool, error) {
 
 	var user models.User
 	var exists bool
-	err := r.db.QueryRow(`
+	err := r.db.QueryRow(context.Background(), `
 		SELECT EXISTS(
 		SELECT 1
 			FROM users
@@ -120,8 +122,12 @@ func (r *AccountRepository) ResendVerifyEmail(email string) (bool, error) {
     token_expires_at = $2
 		WHERE email = $3 AND is_verified = FALSE `
 
-	_, err = r.db.Exec(query, user.VerifyToken, user.TokenExpiresAt, email)
+	commandTag, err := r.db.Exec(context.Background(), query, user.VerifyToken, user.TokenExpiresAt, email)
 	if err != nil {
+		r.logger.Error("Failed to save the verification token in the database", err)
+		return false, ErrVerifyMail
+	}
+	if commandTag.RowsAffected() != 1 {
 		r.logger.Error("Failed to save the verification token in the database", err)
 		return false, ErrVerifyMail
 	}
@@ -139,7 +145,7 @@ func (r *AccountRepository) Register(name, email, password string) (bool, error)
 
 	// Check if user already exists
 	var exists bool
-	err := r.db.QueryRow(`
+	err := r.db.QueryRow(context.Background(), `
 		SELECT EXISTS(
 		SELECT 1
 			FROM users
@@ -180,7 +186,7 @@ func (r *AccountRepository) Register(name, email, password string) (bool, error)
 		RETURNING id
 	`
 	var userID int
-	err = r.db.QueryRow(
+	err = r.db.QueryRow(context.Background(),
 		query,
 		name,
 		email,
@@ -212,7 +218,7 @@ func (r *AccountRepository) Authenticate(email string, password string) (bool, e
 		FROM users
 		WHERE email = $1 AND time_deleted IS NULL
 	`
-	err := r.db.QueryRow(query, email).Scan(
+	err := r.db.QueryRow(context.Background(), query, email).Scan(
 		&user.ID,
 		&user.Name,
 		&user.Email,
@@ -259,8 +265,12 @@ func (r *AccountRepository) Authenticate(email string, password string) (bool, e
 		SET last_login = $1 AND is_verified = FALSE AND verify_token= $1 AND token_expires_at= $2
 		WHERE id = $3
 		`
-		_, err = r.db.Exec(updateQuery, time.Now(), user.VerifyToken, user.TokenExpiresAt)
+		commandTag, err := r.db.Exec(context.Background(), updateQuery, time.Now(), user.VerifyToken, user.TokenExpiresAt)
 		if err != nil {
+			r.logger.Error("Failed to save the verification token in the database", err)
+			return false, ErrVerifyMail
+		}
+		if commandTag.RowsAffected() != 1 {
 			r.logger.Error("Failed to save the verification token in the database", err)
 			return false, ErrVerifyMail
 		}
@@ -275,10 +285,14 @@ func (r *AccountRepository) Authenticate(email string, password string) (bool, e
 		WHERE id = $2
 	`
 
-	_, err = r.db.Exec(updateQuery, time.Now(), user.ID)
+	commandTag, err := r.db.Exec(context.Background(), updateQuery, time.Now(), user.ID)
 	if err != nil {
 		r.logger.Error("Failed to update last login", err)
 		// Don't fail authentication just because last login update failed
+	}
+	if commandTag.RowsAffected() != 1 {
+		r.logger.Error("Failed to update last login", err)
+		return false, ErrUserNotСonfirmedMail
 	}
 
 	return true, nil
@@ -292,7 +306,7 @@ func (r *AccountRepository) DeleteAccount(email string) (bool, error) {
 	`
 	var user models.User
 
-	err := r.db.QueryRow(query,
+	err := r.db.QueryRow(context.Background(), query,
 		email).Scan(
 		&user.Email,
 	)
@@ -313,7 +327,7 @@ func (r *AccountRepository) GetAccountDetails(email string) (models.User, error)
 		FROM users
 		WHERE email = $1 AND time_deleted IS NULL
 	`
-	err := r.db.QueryRow(query, email).Scan(
+	err := r.db.QueryRow(context.Background(), query, email).Scan(
 		&user.ID,
 		&user.Name,
 		&user.Email,
@@ -337,7 +351,7 @@ func (r *AccountRepository) GetAccountDetails(email string) (models.User, error)
 		WHERE um.user_id = $1 AND um.relation_type = 'favorite'
 		ORDER BY um.time_added
 	`
-	favoriteRows, err := r.db.Query(favoritesQuery, user.ID)
+	favoriteRows, err := r.db.Query(context.Background(), favoritesQuery, user.ID)
 	if err != nil {
 		r.logger.Error("Failed to query user favorites", err)
 		return user, err
@@ -367,7 +381,7 @@ func (r *AccountRepository) GetAccountDetails(email string) (models.User, error)
 		WHERE um.user_id = $1 AND um.relation_type = 'watchlist'
 		ORDER BY um.time_added
 	`
-	watchlistRows, err := r.db.Query(watchlistQuery, user.ID)
+	watchlistRows, err := r.db.Query(context.Background(), watchlistQuery, user.ID)
 	if err != nil {
 		r.logger.Error("Failed to query user watchlist", err)
 		return user, err
@@ -404,7 +418,7 @@ func (r *AccountRepository) SaveCollection(user models.User, movieID int, collec
 
 	// Get user ID from email
 	var userID int
-	err := r.db.QueryRow(`
+	err := r.db.QueryRow(context.Background(), `
 		SELECT id
 		FROM users
 		WHERE email = $1 AND time_deleted IS NULL
@@ -435,7 +449,7 @@ func (r *AccountRepository) SaveCollection(user models.User, movieID int, collec
 	// 	`
 
 	// }
-	_, err = r.db.Exec(query, userID, movieID, collection, time.Now(), score)
+	_, err = r.db.Exec(context.Background(), query, userID, movieID, collection, time.Now(), score)
 	if err != nil {
 		r.logger.Error("Failed to save movie to "+collection, err)
 		return false, err
@@ -458,7 +472,7 @@ func (r *AccountRepository) DeleteCollection(user models.User, movieID int, coll
 
 	// Get user ID from email
 	var userID int
-	err := r.db.QueryRow(`
+	err := r.db.QueryRow(context.Background(), `
 		SELECT id
 		FROM users
 		WHERE email = $1 AND time_deleted IS NULL
@@ -477,10 +491,14 @@ func (r *AccountRepository) DeleteCollection(user models.User, movieID int, coll
 		DELETE FROM user_movies
 		WHERE user_id = $1 AND movie_id = $2 AND relation_type = $3;
 	`
-	_, err = r.db.Exec(query, userID, movieID, collection)
+	commandTag, err := r.db.Exec(context.Background(), query, userID, movieID, collection)
 	if err != nil {
 		r.logger.Error("Failed to delete movie to "+collection, err)
 		return false, err
+	}
+	if commandTag.RowsAffected() != 1 {
+		r.logger.Error("Failed to save the verification token in the database", err)
+		return false, ErrVerifyMail
 	}
 
 	r.logger.Info("Successfully delete movie " + strconv.Itoa(movieID) + " to " + collection + " for user")
@@ -498,7 +516,7 @@ func (r *AccountRepository) VerifyEmail(token string) (bool, string, error) {
             is_verified = $2 AND
             token_expires_at > NOW()`
 
-	err := r.db.QueryRow(query, token, false).Scan(&user.Email)
+	err := r.db.QueryRow(context.Background(), query, token, false).Scan(&user.Email)
 	r.logger.Info(user.Email)
 
 	if err == sql.ErrNoRows {
@@ -518,9 +536,14 @@ func (r *AccountRepository) VerifyEmail(token string) (bool, string, error) {
     	is_verified = TRUE
 		WHERE email = $1;`
 
-	_, err = r.db.Exec(updateQuery, user.Email)
+	commandTag, err := r.db.Exec(context.Background(), updateQuery, user.Email)
 	if err != nil {
 		r.logger.Error("Failed to update verify email", err)
+		return false, "", ErrVerifyMail
+	}
+	if commandTag.RowsAffected() != 1 {
+		r.logger.Error("Failed to update verify email", err)
+		return false, "", ErrVerifyMail
 	}
 
 	return true, user.Email, nil

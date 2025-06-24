@@ -6,9 +6,10 @@ export default class MoviesPage extends HTMLElement {
     super()
     this.movies = []
     this.currentPage = 1
-    this.pageSize = 10
+    this.pageSize = 50
     this.totalCount = 0
     this.isLoading = false
+    this.totalPages
   }
 
   async loadGenres() {
@@ -24,7 +25,12 @@ export default class MoviesPage extends HTMLElement {
       select.appendChild(option)
     })
   }
+
   async render() {
+    const template = document.getElementById('template-movies')
+    const content = template.content.cloneNode(true)
+    this.appendChild(content)
+
     const urlParams = new URLSearchParams(window.location.search)
     const query = urlParams.get('q') ?? ''
     const order = urlParams.get('order') ?? ''
@@ -34,12 +40,7 @@ export default class MoviesPage extends HTMLElement {
     let pageSize = urlParams.get('pageSize') ?? ''
     if (query) {
       this.querySelector('h2').textContent = `'${query}' movies`
-      this.render(query)
     }
-    debugger
-    // const movies = await fetch(
-    //   '/api/movies/search/?query=&order=&genre=&releaseYear=&page=&pageSize='
-    // )
 
     if (page == '') {
       page = 1
@@ -48,7 +49,7 @@ export default class MoviesPage extends HTMLElement {
       pageSize = 50
     }
 
-    const movies = await API.searchMovies(
+    const response = await API.searchMovies(
       query,
       order,
       genre,
@@ -56,17 +57,11 @@ export default class MoviesPage extends HTMLElement {
       page,
       pageSize
     )
-    // const movies = await response.Json()
-
-    const totalPages = Math.ceil(movies.totalCount / movies.pageSize)
-    const pagination = this.querySelector('pagination-component')
-    pagination.setPages(this.currentPage, totalPages)
-    this.querySelector('ul').append(pagination)
 
     const ulMovies = this.querySelector('ul')
     ulMovies.innerHTML = ''
-    if (movies && movies.length > 0) {
-      movies.forEach((movie) => {
+    if (response.movies && response.movies.length > 0) {
+      response.movies.forEach((movie) => {
         const li = document.createElement('li')
         li.appendChild(new MovieItemComponent(movie))
         ulMovies.appendChild(li)
@@ -79,12 +74,18 @@ export default class MoviesPage extends HTMLElement {
 
     if (order) this.querySelector('#order').value = order
     if (genre) this.querySelector('#filter').value = genre
+
+    if (response.movies) {
+      this.totalPages = Math.ceil(
+        response.movies[0].total_count / response.pageSize
+      )
+    }
+    this.currentPage = response.page
+    const pagination = this.querySelector('pagination-component')
+    pagination.setPages(this.currentPage, this.totalPages)
   }
 
   connectedCallback() {
-    const template = document.getElementById('template-movies')
-    const content = template.content.cloneNode(true)
-    this.appendChild(content)
     this.render()
   }
 }
